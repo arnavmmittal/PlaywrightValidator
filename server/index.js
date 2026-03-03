@@ -4,7 +4,7 @@ const http = require('http');
 const cors = require('cors');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { TestOrchestrator } = require('./orchestrator');
+const { TestOrchestrator, loadReport, getReportHistory } = require('./orchestrator');
 
 const app = express();
 const server = http.createServer(app);
@@ -81,28 +81,53 @@ app.post('/api/test/run', async (req, res) => {
   });
 });
 
-// Get report
+// Get report history
+app.get('/api/reports/history', (req, res) => {
+  const history = getReportHistory();
+  res.json(history);
+});
+
+// Get report (from memory or disk)
 app.get('/api/report/:sessionId', (req, res) => {
-  const session = sessions.get(req.params.sessionId);
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
+  const { sessionId } = req.params;
+
+  // Check memory first
+  const session = sessions.get(sessionId);
+  if (session) {
+    if (!session.report) {
+      return res.json({ status: session.status });
+    }
+    return res.json(session.report);
   }
-  if (!session.report) {
-    return res.json({ status: session.status });
+
+  // Check disk
+  const savedReport = loadReport(sessionId);
+  if (savedReport) {
+    return res.json(savedReport);
   }
-  res.json(session.report);
+
+  return res.status(404).json({ error: 'Report not found' });
 });
 
 // Get report as PDF
 app.get('/api/report/:sessionId/pdf', async (req, res) => {
-  const session = sessions.get(req.params.sessionId);
-  if (!session || !session.report) {
+  const { sessionId } = req.params;
+
+  // Check memory first
+  let report = sessions.get(sessionId)?.report;
+
+  // Check disk if not in memory
+  if (!report) {
+    report = loadReport(sessionId);
+  }
+
+  if (!report) {
     return res.status(404).json({ error: 'Report not found' });
   }
 
   try {
     const { generatePDF } = require('./reporters/pdf-reporter');
-    const pdfBuffer = await generatePDF(session.report);
+    const pdfBuffer = await generatePDF(report);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="qa-report-${req.params.sessionId}.pdf"`);

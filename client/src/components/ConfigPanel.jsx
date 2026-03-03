@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Settings } from 'lucide-react';
+import { Play, Settings, Eye } from 'lucide-react';
 import { TEST_CATEGORIES, getTotalTestCount } from '../utils/constants';
 
 export function ConfigPanel({ onStartTests }) {
@@ -9,7 +9,9 @@ export function ConfigPanel({ onStartTests }) {
     headless: true,
     screenshots: true,
     timeout: 30,
+    slowMo: 250, // For visible mode
   });
+  const [watchMode, setWatchMode] = useState(false);
 
   const totalTests = getTotalTestCount();
   const selectedCount = selectedTests.size;
@@ -57,7 +59,11 @@ export function ConfigPanel({ onStartTests }) {
     onStartTests({
       url,
       tests: Array.from(selectedTests),
-      options,
+      options: {
+        ...options,
+        headless: !watchMode,
+        slowMo: watchMode ? 250 : 0,
+      },
     });
   };
 
@@ -94,14 +100,18 @@ export function ConfigPanel({ onStartTests }) {
 
         {/* Options */}
         <div className="flex flex-wrap gap-6 mt-4 pt-4 border-t border-[#2A2A2A]">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer group">
             <input
               type="checkbox"
-              checked={options.headless}
-              onChange={(e) => setOptions(prev => ({ ...prev, headless: e.target.checked }))}
+              checked={watchMode}
+              onChange={(e) => setWatchMode(e.target.checked)}
               className="w-4 h-4 rounded bg-[#1A1A1A] border-[#2A2A2A] text-[#E8FF47] focus:ring-[#E8FF47]"
             />
-            <span className="text-sm">Headless mode</span>
+            <Eye size={14} className={watchMode ? 'text-[#E8FF47]' : 'text-[#7B8794]'} />
+            <span className={`text-sm ${watchMode ? 'text-[#E8FF47]' : ''}`}>
+              Watch Mode
+              <span className="text-xs text-[#7B8794] ml-1">(see browser)</span>
+            </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input

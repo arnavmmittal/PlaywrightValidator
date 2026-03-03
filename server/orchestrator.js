@@ -58,11 +58,23 @@ class TestOrchestrator {
     const { url, tests, options } = this.config;
     const startTime = Date.now();
 
-    this.broadcast({ type: 'browser_launched', browser: 'Chromium' });
+    // Support visible mode with slowMo for demos
+    const launchOptions = {
+      headless: options.headless !== false,
+    };
 
-    const browser = await chromium.launch({
-      headless: options.headless !== false
+    // Add slowMo for visible mode to make actions observable
+    if (options.headless === false && options.slowMo) {
+      launchOptions.slowMo = options.slowMo;
+    }
+
+    this.broadcast({
+      type: 'browser_launched',
+      browser: 'Chromium',
+      headless: launchOptions.headless
     });
+
+    const browser = await chromium.launch(launchOptions);
 
     try {
       const context = await browser.newContext({
@@ -126,6 +138,17 @@ class TestOrchestrator {
           this.bugs.push(...testBugs);
 
           for (const bug of testBugs) {
+            // Capture screenshot for each bug if enabled
+            if (options.screenshots && bug.severity !== 'info') {
+              try {
+                const screenshotPath = path.join(this.screenshotDir, `${bug.id}.png`);
+                await page.screenshot({ path: screenshotPath, fullPage: false });
+                bug.screenshot = `screenshots/${this.sessionId}/${bug.id}.png`;
+                this.broadcast({ type: 'screenshot', bugId: bug.id, path: bug.screenshot });
+              } catch (e) {
+                // Screenshot failed, continue without it
+              }
+            }
             this.broadcast({ type: 'bug_found', bug });
           }
 
@@ -306,12 +329,14 @@ class TestOrchestrator {
       }
     }
 
-    return {
+    const report = {
       sessionId: this.sessionId,
       url: this.config.url,
       timestamp: new Date().toISOString(),
       duration_ms: Date.now() - startTime,
       testsRun: this.config.tests.length,
+      testsSelected: this.config.tests,
+      options: this.config.options,
       summary,
       vitals: this.vitals || {
         lcp: { value: 0, unit: 'ms', rating: 'unknown' },
@@ -323,7 +348,70 @@ class TestOrchestrator {
       sourceAudit: this.sourceAudit,
       bugs: this.bugs,
     };
+
+    // Persist report to disk
+    this.saveReport(report);
+
+    return report;
+  }
+
+  saveReport(report) {
+    try {
+      const reportsDir = path.join(__dirname, '../reports');
+      fs.mkdirSync(reportsDir, { recursive: true });
+
+      // Save individual report
+      const reportPath = path.join(reportsDir, `${report.sessionId}.json`);
+      fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+
+      // Update history index
+      const historyPath = path.join(reportsDir, 'history.json');
+      let history = [];
+      if (fs.existsSync(historyPath)) {
+        try {
+          history = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+        } catch (e) {
+          history = [];
+        }
+      }
+
+      // Add to history (keep last 100)
+      history.unshift({
+        sessionId: report.sessionId,
+        url: report.url,
+        timestamp: report.timestamp,
+        duration_ms: report.duration_ms,
+        testsRun: report.testsRun,
+        summary: report.summary,
+        totalBugs: report.bugs.length,
+      });
+      history = history.slice(0, 100);
+
+      fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+
+      this.broadcast({ type: 'log', text: `Report saved: ${report.sessionId}`, color: '#4ECDC4' });
+    } catch (e) {
+      console.error('Failed to save report:', e.message);
+    }
   }
 }
 
-module.exports = { TestOrchestrator };
+// Load historical report
+function loadReport(sessionId) {
+  const reportPath = path.join(__dirname, '../reports', `${sessionId}.json`);
+  if (fs.existsSync(reportPath)) {
+    return JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+  }
+  return null;
+}
+
+// Get report history
+function getReportHistory() {
+  const historyPath = path.join(__dirname, '../reports', 'history.json');
+  if (fs.existsSync(historyPath)) {
+    return JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+  }
+  return [];
+}
+
+module.exports = { TestOrchestrator, loadReport, getReportHistory };
