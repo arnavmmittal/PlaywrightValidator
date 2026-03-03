@@ -23,7 +23,7 @@ async function runSrcJs(page, url, options, broadcast, orchestrator) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: (options.timeout || 30) * 1000 });
 
     const pageOrigin = new URL(url).origin;
-    const analysis = await page.evaluate((origin, trackerDomains) => {
+    const analysis = await page.evaluate(({ origin, trackerDomains }) => {
       const scripts = Array.from(document.querySelectorAll('script[src]'))
         .map(s => s.src)
         .filter(src => src.startsWith('http'));
@@ -51,7 +51,7 @@ async function runSrcJs(page, url, options, broadcast, orchestrator) {
         inlineHandlers,
         totalNodes
       };
-    }, pageOrigin, TRACKER_DOMAINS);
+    }, { origin: pageOrigin, trackerDomains: TRACKER_DOMAINS });
 
     // Identify analytics providers
     const analyticsProviders = [...new Set(
