@@ -100,3 +100,40 @@ export const VITALS_THRESHOLDS = {
 export const getTotalTestCount = () => {
   return TEST_CATEGORIES.reduce((sum, cat) => sum + cat.tests.length, 0);
 };
+
+export const TEST_PRESETS = [
+  {
+    id: 'quick_scan',
+    label: 'Quick Scan',
+    description: 'Fast check of links, security, performance, and accessibility',
+    icon: '🚀',
+    testIds: ['nav_broken', 'sec_xss', 'perf_vitals', 'exp_a11y'],
+  },
+  {
+    id: 'full_security',
+    label: 'Full Security Audit',
+    description: 'All security tests plus prompt injection and overflow fuzzing',
+    icon: '🔒',
+    testIds: ['sec_xss', 'sec_sqli', 'sec_overflow', 'search_prompts'],
+  },
+  {
+    id: 'perf_deep_dive',
+    label: 'Performance Deep Dive',
+    description: 'All performance tests plus JS instrumentation and console errors',
+    icon: '📊',
+    testIds: ['perf_vitals', 'perf_load', 'perf_stress', 'src_js', 'src_console'],
+  },
+  {
+    id: 'complete_suite',
+    label: 'Complete Suite',
+    description: 'Run every test in the suite for full coverage',
+    icon: '🎯',
+    testIds: TEST_CATEGORIES.flatMap(cat => cat.tests.map(t => t.id)),
+  },
+];
+
+export const BROWSER_OPTIONS = [
+  { id: 'chromium', label: 'Chromium' },
+  { id: 'firefox', label: 'Firefox' },
+  { id: 'webkit', label: 'WebKit' },
+];

@@ -1,7 +1,10 @@
-const { chromium } = require('playwright');
+const { chromium, firefox, webkit } = require('playwright');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+
+// Browser map for selection
+const BROWSERS = { chromium, firefox, webkit };
 
 // Test info mapping
 const TEST_INFO = {
@@ -58,6 +61,10 @@ class TestOrchestrator {
     const { url, tests, options } = this.config;
     const startTime = Date.now();
 
+    // Select browser engine
+    const browserName = options.browser || 'chromium';
+    const browserType = BROWSERS[browserName] || chromium;
+
     // Support visible mode with slowMo for demos
     const launchOptions = {
       headless: options.headless !== false,
@@ -70,11 +77,11 @@ class TestOrchestrator {
 
     this.broadcast({
       type: 'browser_launched',
-      browser: 'Chromium',
+      browser: browserName.charAt(0).toUpperCase() + browserName.slice(1),
       headless: launchOptions.headless
     });
 
-    const browser = await chromium.launch(launchOptions);
+    const browser = await browserType.launch(launchOptions);
 
     try {
       const context = await browser.newContext({
@@ -82,104 +89,19 @@ class TestOrchestrator {
         userAgent: options.userAgent || undefined,
       });
 
-      const page = await context.newPage();
-
-      // Capture console errors globally
+      // Global console errors collected across all pages
       const consoleErrors = [];
-      page.on('console', msg => {
-        if (msg.type() === 'error') {
-          consoleErrors.push(msg.text());
-          this.broadcast({ type: 'log', text: `Console error: ${msg.text().slice(0, 100)}`, color: '#FF6B35' });
-        }
-      });
 
-      page.on('pageerror', error => {
-        consoleErrors.push(error.message);
-      });
-
-      // Handle dialogs (for XSS detection)
-      page.on('dialog', async dialog => {
-        this.broadcast({ type: 'log', text: `Dialog detected: ${dialog.message()}`, color: '#FF6B35' });
-        await dialog.dismiss();
-      });
-
-      // Navigate to target
-      try {
-        await page.goto(url, {
-          waitUntil: 'domcontentloaded',
-          timeout: (options.timeout || 30) * 1000
-        });
-        this.broadcast({ type: 'navigated', url });
-      } catch (navError) {
-        this.broadcast({ type: 'error', message: `Failed to navigate: ${navError.message}` });
-        throw navError;
-      }
-
-      // Take initial screenshot
-      if (options.screenshots) {
-        await page.screenshot({ path: path.join(this.screenshotDir, 'initial.png'), fullPage: true });
-      }
-
+      const maxRetries = Number(options.retries) || 0;
       const totalTests = tests.length;
       let completed = 0;
 
-      for (const testId of tests) {
-        const testInfo = TEST_INFO[testId] || { label: testId, category: 'Unknown' };
-
-        this.broadcast({
-          type: 'test_start',
-          testId,
-          label: testInfo.label,
-          category: testInfo.category
-        });
-
-        try {
-          const testBugs = await this.runTest(testId, page, context, browser, options, consoleErrors);
-          this.bugs.push(...testBugs);
-
-          for (const bug of testBugs) {
-            // Capture screenshot for each bug if enabled
-            if (options.screenshots && bug.severity !== 'info') {
-              try {
-                const screenshotPath = path.join(this.screenshotDir, `${bug.id}.png`);
-                await page.screenshot({ path: screenshotPath, fullPage: false });
-                bug.screenshot = `screenshots/${this.sessionId}/${bug.id}.png`;
-                this.broadcast({ type: 'screenshot', bugId: bug.id, path: bug.screenshot });
-              } catch (e) {
-                // Screenshot failed, continue without it
-              }
-            }
-            this.broadcast({ type: 'bug_found', bug });
-          }
-
-          this.broadcast({
-            type: 'test_complete',
-            testId,
-            status: 'done',
-            bugsFound: testBugs.length
-          });
-        } catch (error) {
-          this.broadcast({
-            type: 'log',
-            text: `Test ${testId} failed: ${error.message}`,
-            color: '#FF2D2D'
-          });
-
-          this.broadcast({
-            type: 'test_complete',
-            testId,
-            status: 'error',
-            bugsFound: 0
-          });
-        }
-
-        completed++;
-        this.broadcast({
-          type: 'progress',
-          percent: Math.round((completed / totalTests) * 100),
-          completed,
-          total: totalTests
-        });
+      if (options.parallel) {
+        // Parallel execution with concurrency limit of 3
+        await this._runParallel(tests, context, browser, options, consoleErrors, maxRetries, totalTests, () => ++completed);
+      } else {
+        // Sequential execution
+        await this._runSequential(tests, context, browser, options, consoleErrors, maxRetries, totalTests, () => ++completed);
       }
 
       // Update console errors count
@@ -193,6 +115,236 @@ class TestOrchestrator {
     const report = this.generateReport(startTime);
     this.broadcast({ type: 'complete', report });
     return report;
+  }
+
+  async _runSequential(tests, context, browser, options, consoleErrors, maxRetries, totalTests, incrementCompleted) {
+    const { url } = this.config;
+
+    for (const testId of tests) {
+      const testInfo = TEST_INFO[testId] || { label: testId, category: 'Unknown' };
+
+      this.broadcast({
+        type: 'test_start',
+        testId,
+        label: testInfo.label,
+        category: testInfo.category
+      });
+
+      const page = await this._createFreshPage(context, url, options, consoleErrors);
+
+      try {
+        const testBugs = await this._runTestWithRetries(testId, page, context, browser, options, consoleErrors, maxRetries);
+        this.bugs.push(...testBugs);
+
+        for (const bug of testBugs) {
+          if (options.screenshots && bug.severity !== 'info') {
+            try {
+              const screenshotPath = path.join(this.screenshotDir, `${bug.id}.png`);
+              await page.screenshot({ path: screenshotPath, fullPage: false });
+              bug.screenshot = `screenshots/${this.sessionId}/${bug.id}.png`;
+              this.broadcast({ type: 'screenshot', bugId: bug.id, path: bug.screenshot });
+            } catch (e) {
+              // Screenshot failed, continue without it
+            }
+          }
+          this.broadcast({ type: 'bug_found', bug });
+        }
+
+        this.broadcast({
+          type: 'test_complete',
+          testId,
+          status: 'done',
+          bugsFound: testBugs.length
+        });
+      } catch (error) {
+        this.broadcast({
+          type: 'log',
+          text: `Test ${testId} failed: ${error.message}`,
+          color: '#FF2D2D'
+        });
+
+        this.broadcast({
+          type: 'test_complete',
+          testId,
+          status: 'error',
+          bugsFound: 0
+        });
+      } finally {
+        await page.close().catch(() => {});
+      }
+
+      const completed = incrementCompleted();
+      this.broadcast({
+        type: 'progress',
+        percent: Math.round((completed / totalTests) * 100),
+        completed,
+        total: totalTests
+      });
+    }
+  }
+
+  async _runParallel(tests, context, browser, options, consoleErrors, maxRetries, totalTests, incrementCompleted) {
+    const { url } = this.config;
+    const concurrencyLimit = 3;
+
+    // Process in batches of concurrencyLimit
+    for (let i = 0; i < tests.length; i += concurrencyLimit) {
+      const batch = tests.slice(i, i + concurrencyLimit);
+
+      const results = await Promise.allSettled(
+        batch.map(async (testId) => {
+          const testInfo = TEST_INFO[testId] || { label: testId, category: 'Unknown' };
+
+          this.broadcast({
+            type: 'test_start',
+            testId,
+            label: testInfo.label,
+            category: testInfo.category
+          });
+
+          const page = await this._createFreshPage(context, url, options, consoleErrors);
+
+          try {
+            const testBugs = await this._runTestWithRetries(testId, page, context, browser, options, consoleErrors, maxRetries);
+
+            for (const bug of testBugs) {
+              if (options.screenshots && bug.severity !== 'info') {
+                try {
+                  const screenshotPath = path.join(this.screenshotDir, `${bug.id}.png`);
+                  await page.screenshot({ path: screenshotPath, fullPage: false });
+                  bug.screenshot = `screenshots/${this.sessionId}/${bug.id}.png`;
+                  this.broadcast({ type: 'screenshot', bugId: bug.id, path: bug.screenshot });
+                } catch (e) {
+                  // Screenshot failed, continue without it
+                }
+              }
+              this.broadcast({ type: 'bug_found', bug });
+            }
+
+            this.broadcast({
+              type: 'test_complete',
+              testId,
+              status: 'done',
+              bugsFound: testBugs.length
+            });
+
+            return testBugs;
+          } catch (error) {
+            this.broadcast({
+              type: 'log',
+              text: `Test ${testId} failed: ${error.message}`,
+              color: '#FF2D2D'
+            });
+
+            this.broadcast({
+              type: 'test_complete',
+              testId,
+              status: 'error',
+              bugsFound: 0
+            });
+
+            return [];
+          } finally {
+            await page.close().catch(() => {});
+          }
+        })
+      );
+
+      // Collect bugs from settled results
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          this.bugs.push(...result.value);
+        }
+      }
+
+      // Update progress for the batch
+      for (let j = 0; j < batch.length; j++) {
+        const completed = incrementCompleted();
+        this.broadcast({
+          type: 'progress',
+          percent: Math.round((completed / totalTests) * 100),
+          completed,
+          total: totalTests
+        });
+      }
+    }
+  }
+
+  /**
+   * Create a fresh page from the context, navigate to url, and attach listeners.
+   */
+  async _createFreshPage(context, url, options, consoleErrors) {
+    const page = await context.newPage();
+
+    // Capture console errors
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text());
+        this.broadcast({ type: 'log', text: `Console error: ${msg.text().slice(0, 100)}`, color: '#FF6B35' });
+      }
+    });
+
+    page.on('pageerror', error => {
+      consoleErrors.push(error.message);
+    });
+
+    // Handle dialogs (for XSS detection)
+    page.on('dialog', async dialog => {
+      this.broadcast({ type: 'log', text: `Dialog detected: ${dialog.message()}`, color: '#FF6B35' });
+      await dialog.dismiss();
+    });
+
+    // Navigate to target
+    try {
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: (options.timeout || 30) * 1000
+      });
+      this.broadcast({ type: 'navigated', url });
+    } catch (navError) {
+      this.broadcast({ type: 'error', message: `Failed to navigate: ${navError.message}` });
+      throw navError;
+    }
+
+    // Take initial screenshot
+    if (options.screenshots) {
+      await page.screenshot({ path: path.join(this.screenshotDir, 'initial.png'), fullPage: true }).catch(() => {});
+    }
+
+    return page;
+  }
+
+  /**
+   * Run a test with retry support. Retries up to maxRetries times on failure.
+   */
+  async _runTestWithRetries(testId, page, context, browser, options, consoleErrors, maxRetries) {
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          this.broadcast({
+            type: 'log',
+            text: `Retrying test ${testId} (attempt ${attempt + 1}/${maxRetries + 1})`,
+            color: '#FFA500'
+          });
+        }
+        return await this.runTest(testId, page, context, browser, options, consoleErrors);
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxRetries) {
+          this.broadcast({
+            type: 'retry',
+            testId,
+            attempt: attempt + 1,
+            maxRetries,
+            error: error.message
+          });
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   async runTest(testId, page, context, browser, options, consoleErrors) {
@@ -329,6 +481,45 @@ class TestOrchestrator {
       }
     }
 
+    // Calculate health score (0-100)
+    let healthScore = 100;
+    healthScore -= summary.critical * 15;
+    healthScore -= summary.high * 10;
+    healthScore -= summary.medium * 5;
+    healthScore -= summary.low * 2;
+    // info: -0 each (no deduction)
+
+    // Deduct for poor vitals
+    const vitals = this.vitals || {
+      lcp: { value: 0, unit: 'ms', rating: 'unknown' },
+      fid: { value: 0, unit: 'ms', rating: 'unknown' },
+      cls: { value: 0, unit: '', rating: 'unknown' },
+      ttfb: { value: 0, unit: 'ms', rating: 'unknown' },
+      fcp: { value: 0, unit: 'ms', rating: 'unknown' },
+    };
+
+    for (const vital of Object.values(vitals)) {
+      if (vital && vital.rating === 'poor') {
+        healthScore -= 5;
+      } else if (vital && vital.rating === 'needs-improvement') {
+        healthScore -= 2;
+      }
+    }
+
+    // Floor at 0
+    healthScore = Math.max(0, healthScore);
+
+    // Calculate grade
+    let grade;
+    if (healthScore >= 95) grade = 'A+';
+    else if (healthScore >= 90) grade = 'A';
+    else if (healthScore >= 85) grade = 'B+';
+    else if (healthScore >= 80) grade = 'B';
+    else if (healthScore >= 75) grade = 'C+';
+    else if (healthScore >= 70) grade = 'C';
+    else if (healthScore >= 60) grade = 'D';
+    else grade = 'F';
+
     const report = {
       sessionId: this.sessionId,
       url: this.config.url,
@@ -338,13 +529,9 @@ class TestOrchestrator {
       testsSelected: this.config.tests,
       options: this.config.options,
       summary,
-      vitals: this.vitals || {
-        lcp: { value: 0, unit: 'ms', rating: 'unknown' },
-        fid: { value: 0, unit: 'ms', rating: 'unknown' },
-        cls: { value: 0, unit: '', rating: 'unknown' },
-        ttfb: { value: 0, unit: 'ms', rating: 'unknown' },
-        fcp: { value: 0, unit: 'ms', rating: 'unknown' },
-      },
+      healthScore,
+      grade,
+      vitals,
       sourceAudit: this.sourceAudit,
       bugs: this.bugs,
     };
@@ -383,6 +570,8 @@ class TestOrchestrator {
         duration_ms: report.duration_ms,
         testsRun: report.testsRun,
         summary: report.summary,
+        healthScore: report.healthScore,
+        grade: report.grade,
         totalBugs: report.bugs.length,
       });
       history = history.slice(0, 100);
@@ -394,6 +583,79 @@ class TestOrchestrator {
       console.error('Failed to save report:', e.message);
     }
   }
+}
+
+// Compare two reports
+function compareReports(reportA, reportB) {
+  // Build bug identity keys for comparison (using title + location as identity)
+  function bugKey(bug) {
+    return `${bug.title || ''}::${bug.location || ''}::${bug.severity || ''}`;
+  }
+
+  const bugsA = new Map();
+  for (const bug of (reportA.bugs || [])) {
+    bugsA.set(bugKey(bug), bug);
+  }
+
+  const bugsB = new Map();
+  for (const bug of (reportB.bugs || [])) {
+    bugsB.set(bugKey(bug), bug);
+  }
+
+  // Improved: bugs in A not in B (fixed)
+  const improved = [];
+  for (const [key, bug] of bugsA) {
+    if (!bugsB.has(key)) {
+      improved.push(bug);
+    }
+  }
+
+  // Regressed: bugs in B not in A (new)
+  const regressed = [];
+  for (const [key, bug] of bugsB) {
+    if (!bugsA.has(key)) {
+      regressed.push(bug);
+    }
+  }
+
+  // Persistent: bugs in both
+  const persistent = [];
+  for (const [key, bug] of bugsA) {
+    if (bugsB.has(key)) {
+      persistent.push(bug);
+    }
+  }
+
+  // Score delta
+  const scoreA = reportA.healthScore ?? null;
+  const scoreB = reportB.healthScore ?? null;
+  const scoreDelta = (scoreA !== null && scoreB !== null) ? scoreB - scoreA : null;
+
+  // Vitals delta
+  const vitalsDelta = {};
+  const vitalsA = reportA.vitals || {};
+  const vitalsB = reportB.vitals || {};
+  const allVitalKeys = new Set([...Object.keys(vitalsA), ...Object.keys(vitalsB)]);
+
+  for (const key of allVitalKeys) {
+    const a = vitalsA[key] || {};
+    const b = vitalsB[key] || {};
+    vitalsDelta[key] = {
+      valueA: a.value ?? null,
+      valueB: b.value ?? null,
+      valueDelta: (a.value != null && b.value != null) ? b.value - a.value : null,
+      ratingA: a.rating || 'unknown',
+      ratingB: b.rating || 'unknown',
+    };
+  }
+
+  return {
+    improved,
+    regressed,
+    persistent,
+    scoreDelta,
+    vitalsDelta,
+  };
 }
 
 // Load historical report
@@ -414,4 +676,4 @@ function getReportHistory() {
   return [];
 }
 
-module.exports = { TestOrchestrator, loadReport, getReportHistory };
+module.exports = { TestOrchestrator, loadReport, getReportHistory, compareReports };
