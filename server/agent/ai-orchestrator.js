@@ -18,7 +18,7 @@ const { AGENT_PROMPTS } = require('./prompts');
 const BROWSERS = { chromium, firefox, webkit };
 
 // Max tool-use turns to prevent runaway loops
-const MAX_TURNS = 40;
+const MAX_TURNS = 15;
 // Max tokens for Claude responses
 const MAX_TOKENS = 4096;
 
@@ -148,19 +148,28 @@ class AITestOrchestrator {
 
       let response;
       try {
-        response = await client.messages.create({
-          model: 'claude-sonnet-4-5-20250514',
+        const requestParams = {
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: MAX_TOKENS,
           system: systemPrompt,
           tools: TOOL_DEFINITIONS,
-          thinking: { type: 'enabled', budget_tokens: 2048 },
           messages
-        });
+        };
+
+        // Force tool use on first turn to ensure agent starts working
+        if (this.turnCount === 1) {
+          requestParams.tool_choice = { type: 'any' };
+        }
+
+        response = await client.messages.create(requestParams);
+        // Debug: log response shape
+        console.log(`[AI Turn ${this.turnCount}] stop_reason=${response.stop_reason}, content_types=${response.content.map(b => b.type).join(',')}, model=${response.model}`);
       } catch (err) {
         this.broadcast({
           type: 'ai_error',
           message: `Claude API error: ${err.message}`
         });
+        console.error('Claude API error details:', JSON.stringify(err, null, 2));
         break;
       }
 
