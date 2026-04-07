@@ -183,20 +183,23 @@ function App() {
       if (!response.ok) throw new Error('Failed to load report');
       const data = await response.json();
 
+      // API returns report directly, not nested under .report
+      // If it returned {status: 'running'}, there's no report yet
+      if (data.status && !data.bugs) {
+        addToast(`Report not ready yet (status: ${data.status})`, 'info');
+        return;
+      }
+
       // Find previous report for comparison
       const prev = reportHistory.find(r =>
-        r.url === data.report?.url && r.sessionId !== historicSessionId
+        r.url === data.url && r.sessionId !== historicSessionId
       );
       setPreviousReport(prev || null);
 
-      // Set the loaded report by resetting websocket state and manually setting
       reset();
       setSessionId(null);
-      setTestConfig({ url: data.report?.url, tests: [] });
-
-      // We need to trigger the report view — use a small wrapper
-      // The report comes from the API, so we set it via a dedicated state path
-      setLoadedReport(data.report);
+      setTestConfig({ url: data.url, tests: [] });
+      setLoadedReport(data);
       setActiveTab('report');
       addToast('Report loaded from history', 'info');
     } catch (e) {

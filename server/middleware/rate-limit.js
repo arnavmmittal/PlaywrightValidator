@@ -80,12 +80,15 @@ function rateLimitMiddleware(type) {
       });
     }
 
-    // Record this request
-    record[type].push(Date.now());
+    // Don't record yet — let the route confirm the action succeeded.
+    // Attach a helper so the route can call req.recordRateLimit() after success.
+    req.recordRateLimit = () => {
+      record[type].push(Date.now());
+    };
 
-    // Add remaining count to response headers
+    // Add remaining count to response headers (optimistic — assumes it will be consumed)
     res.set('X-RateLimit-Limit', String(limit));
-    res.set('X-RateLimit-Remaining', String(limit - record[type].length));
+    res.set('X-RateLimit-Remaining', String(Math.max(0, limit - record[type].length - 1)));
 
     next();
   };

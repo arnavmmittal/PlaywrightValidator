@@ -7,10 +7,13 @@
  */
 
 const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
 
 const STABILIZE_DELAY_MS = 5000;
 const NAV_TIMEOUT_MS = 30000;
 const NUM_RUNS = 3;
+const SCREENSHOTS_DIR = path.join(__dirname, '../../screenshots');
 
 /**
  * Collect all performance data for a URL.
@@ -194,7 +197,7 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
     runData.thirdParty = _analyzeThirdParty(networkRequests, url);
     runData.dom = await _analyzeDom(page);
     runData.caching = _analyzeCaching(networkRequests);
-    runData.screenshot = await _takeScreenshot(page);
+    runData.screenshot = await _takeScreenshot(page, _extractDomain(url));
   }
 
   await context.close();
@@ -456,10 +459,19 @@ function _analyzeCaching(networkRequests) {
   return { immutableAssets, noCacheAssets, cdnDetected };
 }
 
-async function _takeScreenshot(page) {
+/**
+ * Take a screenshot and save to disk. Returns the filename (not base64).
+ * Screenshots are served via /screenshots/:filename by the Express static middleware.
+ */
+async function _takeScreenshot(page, domain) {
   try {
     const buffer = await page.screenshot({ type: 'png', fullPage: false });
-    return buffer.toString('base64');
+    if (!fs.existsSync(SCREENSHOTS_DIR)) {
+      fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+    }
+    const filename = `${domain.replace(/[^a-z0-9.-]/gi, '_')}-${Date.now()}.png`;
+    fs.writeFileSync(path.join(SCREENSHOTS_DIR, filename), buffer);
+    return `/screenshots/${filename}`;
   } catch {
     return null;
   }

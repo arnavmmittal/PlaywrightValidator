@@ -142,12 +142,17 @@ export function HistoryPanel({ onLoadReport }) {
 
                     {/* Meta */}
                     <div className="flex flex-wrap items-center gap-3 text-xs text-[#7B8794]">
+                      {report.mode === 'ai-agent' && (
+                        <span className="text-[#A78BFA] bg-[#A78BFA]/10 px-1.5 py-0.5 rounded font-mono">
+                          AI {report.agentMode || 'agent'}
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
                         <Clock size={12} />
                         {new Date(report.timestamp).toLocaleString()}
                       </span>
                       <span>{formatDuration(report.duration_ms)}</span>
-                      <span>{report.testsRun ?? '--'} tests</span>
+                      <span>{report.mode === 'ai-agent' ? `${report.testsRun ?? 0} turns` : `${report.testsRun ?? '--'} tests`}</span>
                     </div>
                   </div>
 

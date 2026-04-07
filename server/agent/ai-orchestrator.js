@@ -12,6 +12,8 @@
 const Anthropic = require('@anthropic-ai/sdk').default;
 const { chromium, firefox, webkit } = require('playwright');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 const { TOOL_DEFINITIONS, executeTool } = require('./tools');
 const { AGENT_PROMPTS } = require('./prompts');
 
@@ -22,6 +24,28 @@ const MAX_TURNS = 15;
 // Max tokens for Claude responses
 const MAX_TOKENS = 4096;
 
+// Model configurations with pricing (per million tokens)
+const MODELS = {
+  'haiku': {
+    id: 'claude-haiku-4-5-20251001',
+    label: 'Haiku 4.5 (Fast)',
+    inputCostPer1M: 1.00,
+    outputCostPer1M: 5.00,
+  },
+  'sonnet': {
+    id: 'claude-sonnet-4-5-20250929',
+    label: 'Sonnet 4.5 (Balanced)',
+    inputCostPer1M: 3.00,
+    outputCostPer1M: 15.00,
+  },
+  'opus': {
+    id: 'claude-opus-4-6',
+    label: 'Opus 4.6 (Deep)',
+    inputCostPer1M: 5.00,
+    outputCostPer1M: 25.00,
+  },
+};
+
 class AITestOrchestrator {
   constructor(sessionId, config, broadcast) {
     this.sessionId = sessionId;
@@ -31,6 +55,12 @@ class AITestOrchestrator {
     this.turnCount = 0;
     this.toolCallCount = 0;
     this.aborted = false;
+    // Cost tracking
+    this.totalInputTokens = 0;
+    this.totalOutputTokens = 0;
+    this.totalCost = 0;
+    this.modelKey = config.aiModel || 'haiku'; // Default to haiku for speed
+    this.modelConfig = MODELS[this.modelKey] || MODELS.haiku;
   }
 
   /**
@@ -115,6 +145,7 @@ class AITestOrchestrator {
 
       // Generate report
       const report = this._generateReport(url, duration, agentMode);
+      this._saveReport(report);
 
       this.broadcast({ type: 'ai_status', status: 'complete', message: 'AI testing complete.' });
       this.broadcast({ type: 'complete', report });
@@ -149,7 +180,7 @@ class AITestOrchestrator {
       let response;
       try {
         const requestParams = {
-          model: 'claude-sonnet-4-5-20250929',
+          model: this.modelConfig.id,
           max_tokens: MAX_TOKENS,
           system: systemPrompt,
           tools: TOOL_DEFINITIONS,
@@ -162,14 +193,37 @@ class AITestOrchestrator {
         }
 
         response = await client.messages.create(requestParams);
-        // Debug: log response shape
-        console.log(`[AI Turn ${this.turnCount}] stop_reason=${response.stop_reason}, content_types=${response.content.map(b => b.type).join(',')}, model=${response.model}`);
+
+        // Track token usage and cost
+        const usage = response.usage || {};
+        const inputTokens = usage.input_tokens || 0;
+        const outputTokens = usage.output_tokens || 0;
+        this.totalInputTokens += inputTokens;
+        this.totalOutputTokens += outputTokens;
+        const turnCost = (inputTokens / 1_000_000) * this.modelConfig.inputCostPer1M
+                       + (outputTokens / 1_000_000) * this.modelConfig.outputCostPer1M;
+        this.totalCost += turnCost;
+
+        // Broadcast cost update
+        this.broadcast({
+          type: 'ai_cost_update',
+          turn: this.turnCount,
+          turnInputTokens: inputTokens,
+          turnOutputTokens: outputTokens,
+          turnCost: +turnCost.toFixed(6),
+          totalInputTokens: this.totalInputTokens,
+          totalOutputTokens: this.totalOutputTokens,
+          totalCost: +this.totalCost.toFixed(6),
+          model: this.modelConfig.label
+        });
+
+        console.log(`[AI Turn ${this.turnCount}] model=${response.model} in=${inputTokens} out=${outputTokens} cost=$${turnCost.toFixed(4)} total=$${this.totalCost.toFixed(4)}`);
       } catch (err) {
         this.broadcast({
           type: 'ai_error',
           message: `Claude API error: ${err.message}`
         });
-        console.error('Claude API error details:', JSON.stringify(err, null, 2));
+        console.error('Claude API error details:', err.status, err.message);
         break;
       }
 
@@ -361,17 +415,22 @@ URL: ${url}
       sessionId: this.sessionId,
       url,
       timestamp: new Date().toISOString(),
-      duration: durationMs,
+      duration_ms: durationMs,
       mode: 'ai-agent',
       agentMode,
+      testsRun: this.bugs.length > 0 ? this.turnCount : 0,
       bugs: this.bugs,
-      severityCounts,
+      summary: severityCounts,
       healthScore,
       grade,
       stats: {
         totalBugs: this.bugs.length,
         aiTurns: this.turnCount,
-        toolCalls: this.toolCallCount
+        toolCalls: this.toolCallCount,
+        model: this.modelConfig.label,
+        inputTokens: this.totalInputTokens,
+        outputTokens: this.totalOutputTokens,
+        totalCost: +this.totalCost.toFixed(6)
       },
       // Include vitals/sourceAudit stubs for compatibility with existing report UI
       vitals: null,
@@ -384,6 +443,46 @@ URL: ${url}
         totalDomNodes: 0
       }
     };
+  }
+
+  /**
+   * Persist report to disk and update history index.
+   */
+  _saveReport(report) {
+    try {
+      const reportsDir = path.join(__dirname, '../../reports');
+      fs.mkdirSync(reportsDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(reportsDir, `${report.sessionId}.json`),
+        JSON.stringify(report, null, 2)
+      );
+
+      const historyPath = path.join(reportsDir, 'history.json');
+      let history = [];
+      if (fs.existsSync(historyPath)) {
+        try { history = JSON.parse(fs.readFileSync(historyPath, 'utf8')); } catch { history = []; }
+      }
+
+      history.unshift({
+        sessionId: report.sessionId,
+        url: report.url,
+        timestamp: report.timestamp,
+        duration_ms: report.duration_ms,
+        testsRun: report.testsRun,
+        summary: report.summary,
+        healthScore: report.healthScore,
+        grade: report.grade,
+        totalBugs: report.bugs.length,
+        mode: 'ai-agent',
+        agentMode: report.agentMode,
+      });
+      history = history.slice(0, 100);
+
+      fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+    } catch (e) {
+      console.error('Failed to save AI report:', e.message);
+    }
   }
 
   /**

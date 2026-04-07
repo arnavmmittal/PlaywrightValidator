@@ -131,6 +131,15 @@ export function useWebSocket(sessionId) {
           case 'ai_tool_result':
             setLogs(prev => [...prev, { text: `  ${data.success ? '✓' : '✗'} ${data.summary}`, color: data.success ? '#4ECDC4' : '#FF6B35' }]);
             break;
+          case 'ai_cost_update':
+            setAiState(prev => ({
+              ...prev,
+              totalCost: data.totalCost,
+              totalInputTokens: data.totalInputTokens,
+              totalOutputTokens: data.totalOutputTokens,
+              model: data.model
+            }));
+            break;
           case 'ai_error':
             setError(data.message);
             setLogs(prev => [...prev, { text: `✗ AI Error: ${data.message}`, color: '#FF2D2D' }]);

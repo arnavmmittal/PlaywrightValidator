@@ -13,6 +13,7 @@ const { analyzePerformance } = require('../benchmark/analyzer');
 const { benchmarkQueue } = require('../benchmark/queue');
 const store = require('../benchmark/leaderboard-store');
 const { rateLimitMiddleware, getRateLimitStatus } = require('../middleware/rate-limit');
+const { detectCategory } = require('../utils/categories');
 
 const router = express.Router();
 
@@ -120,7 +121,7 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
       id: uuidv4(),
       url: normalizedUrl,
       domain,
-      category: _detectCategory(domain),
+      category: detectCategory(domain),
       vitals: collectionResult.vitals,
       overallScore,
       grade,
@@ -148,12 +149,16 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
   });
 
   if (!result) {
+    // Don't consume rate limit token — queue was full, user didn't get a benchmark
     return res.status(503).json({
       error: 'Queue is full',
       message: 'Too many benchmarks in progress. Please try again in a few minutes.',
       queue: benchmarkQueue.getStatus(),
     });
   }
+
+  // Successfully enqueued — now record the rate limit usage
+  if (req.recordRateLimit) req.recordRateLimit();
 
   res.json({
     status: 'queued',
@@ -168,28 +173,5 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
 router.get('/queue/status', (req, res) => {
   res.json(benchmarkQueue.getStatus());
 });
-
-// ── Helper: detect category from domain ──────────────────────────────────────
-function _detectCategory(domain) {
-  const categories = {
-    'search': ['google.com', 'bing.com', 'duckduckgo.com', 'baidu.com'],
-    'news': ['cnn.com', 'bbc.com', 'nytimes.com', 'reuters.com', 'theguardian.com'],
-    'social': ['reddit.com', 'x.com', 'twitter.com', 'facebook.com', 'instagram.com'],
-    'video': ['youtube.com', 'vimeo.com', 'twitch.tv'],
-    'dev-tools': ['github.com', 'stackoverflow.com', 'gitlab.com', 'linear.app'],
-    'ai': ['chat.openai.com', 'claude.ai', 'perplexity.ai', 'copilot.microsoft.com'],
-    'infra': ['vercel.com', 'fly.io', 'supabase.com', 'cloudflare.com', 'stripe.com'],
-    'e-commerce': ['amazon.com', 'shopify.com', 'ebay.com', 'etsy.com'],
-    'reference': ['wikipedia.org', 'wikimedia.org'],
-    'community': ['news.ycombinator.com', 'lobste.rs'],
-  };
-
-  for (const [category, domains] of Object.entries(categories)) {
-    if (domains.some(d => domain === d || domain.endsWith('.' + d))) {
-      return category;
-    }
-  }
-  return 'other';
-}
 
 module.exports = router;

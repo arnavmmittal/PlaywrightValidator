@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { Play, Settings, Eye, Monitor, RotateCcw, Brain, Sparkles } from 'lucide-react';
 import { TEST_CATEGORIES, TEST_PRESETS, BROWSER_OPTIONS, getTotalTestCount } from '../utils/constants';
 
+const AI_MODELS = [
+  { id: 'haiku', label: 'Haiku 4.5', desc: 'Fast & cheap (~$0.01/run)', badge: 'FAST' },
+  { id: 'sonnet', label: 'Sonnet 4.5', desc: 'Balanced (~$0.05/run)', badge: 'BALANCED' },
+  { id: 'opus', label: 'Opus 4.6', desc: 'Deepest reasoning (~$0.15/run)', badge: 'DEEP' },
+];
+
 const AI_MODES = [
   { id: 'comprehensive', label: 'Comprehensive', icon: '🔬', desc: 'Full-spectrum testing across all domains' },
   { id: 'security', label: 'Security Audit', icon: '🛡️', desc: 'Focused penetration testing — XSS, SQLi, headers' },
@@ -15,6 +21,7 @@ export function ConfigPanel({ onStartTests, onStartAiTests, aiAvailable }) {
   const [selectedTests, setSelectedTests] = useState(new Set());
   const [useAiMode, setUseAiMode] = useState(false);
   const [selectedAiMode, setSelectedAiMode] = useState('comprehensive');
+  const [selectedAiModel, setSelectedAiModel] = useState('haiku');
   const [options, setOptions] = useState({
     headless: true,
     screenshots: true,
@@ -77,6 +84,7 @@ export function ConfigPanel({ onStartTests, onStartAiTests, aiAvailable }) {
       onStartAiTests({
         url,
         agentMode: selectedAiMode,
+        aiModel: selectedAiModel,
         options: {
           ...options,
           headless: !watchMode,
@@ -239,25 +247,51 @@ export function ConfigPanel({ onStartTests, onStartAiTests, aiAvailable }) {
           </div>
 
           {useAiMode && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {AI_MODES.map(mode => (
-                <button
-                  key={mode.id}
-                  onClick={() => setSelectedAiMode(mode.id)}
-                  className={`text-left p-3 rounded-lg border transition-all ${
-                    selectedAiMode === mode.id
-                      ? 'bg-[#A78BFA]/20 border-[#A78BFA] text-[#A78BFA]'
-                      : 'bg-[#141414] border-[#2A2A2A] hover:border-[#A78BFA]/50 hover:bg-[#1A1A1A]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span>{mode.icon}</span>
-                    <span className="font-medium text-sm">{mode.label}</span>
-                  </div>
-                  <p className="text-xs text-[#7B8794] leading-relaxed">{mode.desc}</p>
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                {AI_MODES.map(mode => (
+                  <button
+                    key={mode.id}
+                    onClick={() => setSelectedAiMode(mode.id)}
+                    className={`text-left p-3 rounded-lg border transition-all ${
+                      selectedAiMode === mode.id
+                        ? 'bg-[#A78BFA]/20 border-[#A78BFA] text-[#A78BFA]'
+                        : 'bg-[#141414] border-[#2A2A2A] hover:border-[#A78BFA]/50 hover:bg-[#1A1A1A]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span>{mode.icon}</span>
+                      <span className="font-medium text-sm">{mode.label}</span>
+                    </div>
+                    <p className="text-xs text-[#7B8794] leading-relaxed">{mode.desc}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Model Selector */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[#7B8794]">Model:</span>
+                {AI_MODELS.map(model => (
+                  <button
+                    key={model.id}
+                    onClick={() => setSelectedAiModel(model.id)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
+                      selectedAiModel === model.id
+                        ? 'bg-[#A78BFA] text-white'
+                        : 'bg-[#1A1A1A] border border-[#2A2A2A] text-[#7B8794] hover:border-[#A78BFA]/50'
+                    }`}
+                  >
+                    <span>{model.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                      selectedAiModel === model.id ? 'bg-white/20' : 'bg-[#2A2A2A]'
+                    }`}>{model.badge}</span>
+                  </button>
+                ))}
+                <span className="text-[10px] text-[#3A3A3A] ml-2">
+                  {AI_MODELS.find(m => m.id === selectedAiModel)?.desc}
+                </span>
+              </div>
+            </>
           )}
         </div>
       )}

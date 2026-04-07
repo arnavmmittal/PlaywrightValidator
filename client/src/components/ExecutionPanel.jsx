@@ -180,6 +180,30 @@ export function ExecutionPanel({ url, progress, currentTest, logs, isComplete, t
                     <span className="text-sm font-mono text-white">{formatTime(elapsed)}</span>
                   </div>
                 </div>
+                {/* Cost Tracker */}
+                {aiState?.totalCost !== undefined && (
+                  <div className="pt-3 border-t border-[#2A2A2A] space-y-2">
+                    <span className="text-xs text-[#7B8794] block">Cost</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-[#7B8794]">Total</span>
+                      <span className="text-sm font-mono text-[#4ECDC4]">${aiState.totalCost?.toFixed(4) || '0.0000'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-[#7B8794]">Input tokens</span>
+                      <span className="text-xs font-mono text-white">{(aiState.totalInputTokens || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-[#7B8794]">Output tokens</span>
+                      <span className="text-xs font-mono text-white">{(aiState.totalOutputTokens || 0).toLocaleString()}</span>
+                    </div>
+                    {aiState.model && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-[#7B8794]">Model</span>
+                        <span className="text-xs font-mono text-[#A78BFA]">{aiState.model}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {aiState?.lastTool && (
                   <div className="pt-3 border-t border-[#2A2A2A]">
                     <span className="text-xs text-[#7B8794] block mb-1">Last Tool</span>
