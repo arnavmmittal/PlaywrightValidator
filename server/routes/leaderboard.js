@@ -99,15 +99,27 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
     // Phase 1: Deterministic collection
     const collectionResult = await collectPerformanceData(normalizedUrl, broadcast);
 
-    // Phase 2: Deterministic scoring
-    const { overallScore, grade, metricScores } = computeOverallScore(collectionResult.vitals);
+    // Check for error pages (403, 404, 500, etc.)
+    const isErrorPage = collectionResult.isErrorPage;
+
+    // Phase 2: Deterministic scoring (skip for error pages)
+    let overallScore, grade, metricScores;
+    if (isErrorPage) {
+      overallScore = 0;
+      grade = 'F';
+      metricScores = {};
+      broadcast({ type: 'error_page_detected', httpStatus: collectionResult.httpStatus });
+    } else {
+      const securityScore = collectionResult.security?.securityScore ?? null;
+      ({ overallScore, grade, metricScores } = computeOverallScore(collectionResult.vitals, securityScore));
+    }
     broadcast({ type: 'scoring_complete', overallScore, grade });
 
-    // Phase 3: AI analysis
+    // Phase 3: AI analysis (skip for error pages — waste of tokens)
     let findings = null;
     let aiStats = { turns: 0, toolCalls: 0, model: 'none', cost: 0 };
 
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (process.env.ANTHROPIC_API_KEY && !isErrorPage) {
       const analysis = await analyzePerformance(collectionResult, {
         model: 'haiku',
         broadcast,
@@ -126,7 +138,13 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
       overallScore,
       grade,
       metricScores,
-      aiAnalysis: findings?.summary || null,
+      httpStatus: collectionResult.httpStatus,
+      status: isErrorPage ? 'error' : 'ok',
+      throttleProfile: collectionResult.throttleProfile,
+      security: collectionResult.security,
+      aiAnalysis: isErrorPage
+        ? `Site returned HTTP ${collectionResult.httpStatus}. Performance data is not meaningful for error pages.`
+        : (findings?.summary || null),
       aiFindings: findings,
       aiScore: findings?.overallScore || null,
       benchmarkedAt: new Date().toISOString(),

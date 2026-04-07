@@ -53,7 +53,7 @@ export function HeroSection({ onBenchmark, recentSites = [], isLoading = false, 
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center px-4 pt-16 pb-12">
+      <div className="relative z-10 flex flex-col items-center justify-center px-4 py-20 min-h-[70vh]">
         {/* Badge */}
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#2A2A2A] bg-[#141414]/80 px-4 py-1.5 backdrop-blur-sm">
           <Zap className="w-3.5 h-3.5 text-[#E8FF47]" />
@@ -61,14 +61,14 @@ export function HeroSection({ onBenchmark, recentSites = [], isLoading = false, 
         </div>
 
         {/* Heading */}
-        <h1 className="text-center text-4xl md:text-6xl font-bold tracking-tight mb-4">
+        <h1 className="text-center text-5xl md:text-7xl font-bold tracking-tight mb-5">
           <span className="text-white">How fast is your site,</span>
           <br />
           <span className="text-[#E8FF47]">really?</span>
         </h1>
 
         {/* Subtext */}
-        <p className="text-center text-sm md:text-base text-[#666666] mb-10 max-w-xl">
+        <p className="text-center text-base md:text-lg text-[#666666] mb-12 max-w-2xl leading-relaxed">
           Deterministic Playwright benchmarks. Constrained AI analysis.
           <br className="hidden sm:block" />
           Public leaderboard. No login required.
@@ -80,20 +80,20 @@ export function HeroSection({ onBenchmark, recentSites = [], isLoading = false, 
             {/* Glow effect */}
             <div className="absolute -inset-0.5 bg-[#E8FF47]/0 group-focus-within:bg-[#E8FF47]/20 rounded-xl blur-lg transition-all duration-500" />
 
-            <div className="relative flex items-center gap-2 bg-[#141414] border border-[#2A2A2A] group-focus-within:border-[#E8FF47]/50 rounded-xl p-2 transition-colors">
-              <Globe className="w-5 h-5 text-[#3A3A3A] ml-2 flex-shrink-0" />
+            <div className="relative flex items-center gap-3 bg-[#141414] border border-[#2A2A2A] group-focus-within:border-[#E8FF47]/50 rounded-2xl p-2.5 transition-colors shadow-lg shadow-black/20">
+              <Globe className="w-5 h-5 text-[#3A3A3A] ml-3 flex-shrink-0" />
               <input
                 type="text"
                 placeholder="Enter any URL to benchmark..."
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={isLoading}
-                className="flex-1 bg-transparent text-white text-sm md:text-base placeholder:text-[#3A3A3A] outline-none h-10 disabled:opacity-50"
+                className="flex-1 bg-transparent text-white text-base md:text-lg placeholder:text-[#3A3A3A] outline-none h-12 disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={!url.trim() || isLoading || rateLimitRemaining <= 0}
-                className="flex items-center gap-2 bg-[#E8FF47] hover:bg-[#d4eb33] disabled:bg-[#E8FF47]/30 disabled:text-black/30 text-black font-semibold px-5 h-10 rounded-lg text-sm transition-all duration-200 hover:shadow-[0_0_20px_rgba(232,255,71,0.3)] disabled:hover:shadow-none flex-shrink-0"
+                className="flex items-center gap-2 bg-[#E8FF47] hover:bg-[#d4eb33] disabled:bg-[#E8FF47]/30 disabled:text-black/30 text-black font-semibold px-6 h-12 rounded-xl text-sm transition-all duration-200 hover:shadow-[0_0_20px_rgba(232,255,71,0.3)] disabled:hover:shadow-none flex-shrink-0"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

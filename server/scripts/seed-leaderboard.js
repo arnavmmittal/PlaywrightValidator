@@ -26,14 +26,14 @@ const SEED_SITES = [
   { url: 'https://news.ycombinator.com/',    category: 'community' },
   { url: 'https://github.com/',              category: 'dev-tools' },
   { url: 'https://wikipedia.org/',           category: 'reference' },
-  { url: 'https://reddit.com/',              category: 'social' },
+  { url: 'https://dev.to/',                    category: 'community' },
   { url: 'https://cnn.com/',                 category: 'news' },
   { url: 'https://stripe.com/',              category: 'infra' },
-  { url: 'https://claude.ai/',               category: 'ai' },
-  { url: 'https://chat.openai.com/',         category: 'ai' },
+  { url: 'https://huggingface.co/',           category: 'ai' },
+  { url: 'https://docs.anthropic.com/',      category: 'ai' },
   { url: 'https://vercel.com/',              category: 'infra' },
   { url: 'https://linear.app/',              category: 'dev-tools' },
-  { url: 'https://amazon.com/',              category: 'e-commerce' },
+  { url: 'https://shopify.com/',              category: 'e-commerce' },
   { url: 'https://nytimes.com/',             category: 'news' },
   { url: 'https://fly.io/',                  category: 'infra' },
   { url: 'https://x.com/',                   category: 'social' },
@@ -89,14 +89,24 @@ async function seed() {
         }
       });
 
-      // Phase 2: Score
-      const { overallScore, grade, metricScores } = computeOverallScore(collectionResult.vitals);
+      // Phase 2: Score (skip for error pages)
+      const isErrorPage = collectionResult.isErrorPage;
+      let overallScore, grade, metricScores;
+      if (isErrorPage) {
+        overallScore = 0;
+        grade = 'F';
+        metricScores = {};
+        warn(`  HTTP ${collectionResult.httpStatus} — error page detected`);
+      } else {
+        const securityScore = collectionResult.security?.securityScore ?? null;
+        ({ overallScore, grade, metricScores } = computeOverallScore(collectionResult.vitals, securityScore));
+      }
 
-      // Phase 3: AI Analysis (if enabled)
+      // Phase 3: AI Analysis (skip for error pages)
       let findings = null;
       let aiStats = { turns: 0, toolCalls: 0, model: 'none', cost: 0 };
 
-      if (!noAI && process.env.ANTHROPIC_API_KEY) {
+      if (!noAI && process.env.ANTHROPIC_API_KEY && !isErrorPage) {
         log('  Running AI analysis...');
         const analysis = await analyzePerformance(collectionResult, { model: 'haiku' });
         findings = analysis.findings;
@@ -114,7 +124,13 @@ async function seed() {
         overallScore,
         grade,
         metricScores,
-        aiAnalysis: findings?.summary || null,
+        httpStatus: collectionResult.httpStatus,
+        status: isErrorPage ? 'error' : 'ok',
+        throttleProfile: collectionResult.throttleProfile,
+        security: collectionResult.security,
+        aiAnalysis: isErrorPage
+          ? `Site returned HTTP ${collectionResult.httpStatus}. Performance data is not meaningful for error pages.`
+          : (findings?.summary || null),
         aiFindings: findings,
         aiScore: findings?.overallScore || null,
         benchmarkedAt: new Date().toISOString(),

@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { X, ExternalLink, Clock, ChevronDown, Zap, Globe, Link2, Check } from 'lucide-react';
+import { X, ExternalLink, Clock, ChevronDown, Zap, Globe, Link2, Check, AlertTriangle, Shield, ShieldCheck, ShieldX } from 'lucide-react';
 import { ScoreArc } from './ScoreArc';
 import { GradeBadge } from './GradeBadge';
 import { MetricDot } from './MetricDot';
@@ -29,7 +29,10 @@ const IMPACT_COLORS = {
 function formatVitalValue(key, vital) {
   const val = vital?.value ?? vital?.median;
   if (val == null) return '—';
-  if (key === 'cls') return val.toFixed(3);
+  if (key === 'cls') {
+    if (val < 0.001) return 'Synthetic';
+    return val.toFixed(3);
+  }
   return `${Math.round(val)}${VITALS_META[key]?.unit || ''}`;
 }
 
@@ -109,6 +112,12 @@ export function SiteDetailDrawer({ entry, onClose }) {
                   <ExternalLink className="w-3 h-3" />
                   Visit site
                 </a>
+                {entry.throttleProfile && (
+                  <span className="flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    {entry.throttleProfile}
+                  </span>
+                )}
                 {entry.source && (
                   <span className="flex items-center gap-1">
                     <Zap className="w-3 h-3" />
@@ -136,24 +145,75 @@ export function SiteDetailDrawer({ entry, onClose }) {
             </div>
           </div>
 
+          {/* Error Page Banner */}
+          {entry.status === 'error' && (
+            <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-lg p-4 my-4">
+              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <div>
+                <div className="text-sm font-medium text-red-400">HTTP {entry.httpStatus} — Error Page</div>
+                <div className="text-xs text-red-400/70 mt-0.5">This site returned an error. Performance scores are not meaningful for error pages.</div>
+              </div>
+            </div>
+          )}
+
           {/* Vitals Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 py-6">
             {Object.entries(VITALS_META).map(([key, meta]) => {
               const vital = entry.vitals?.[key];
+              const formatted = formatVitalValue(key, vital);
+              const isSynthetic = formatted === 'Synthetic';
               return (
-                <div key={key} className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-3">
+                <div key={key} className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-3" title={isSynthetic ? 'CLS is near-zero in synthetic (headless) testing — real user data may differ' : undefined}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] text-[#3A3A3A] uppercase tracking-wider font-medium">{key}</span>
-                    <MetricDot rating={vital?.rating} />
+                    <MetricDot rating={isSynthetic ? 'synthetic' : vital?.rating} />
                   </div>
-                  <div className="font-mono text-lg font-bold text-white mb-0.5">
-                    {formatVitalValue(key, vital)}
+                  <div className={`font-mono text-lg font-bold mb-0.5 ${isSynthetic ? 'text-[#3A3A3A] text-sm italic' : 'text-white'}`}>
+                    {formatted}
                   </div>
-                  <div className="text-[10px] text-[#3A3A3A] leading-tight">{meta.description}</div>
+                  <div className="text-[10px] text-[#3A3A3A] leading-tight">
+                    {isSynthetic ? 'Near-zero in headless browsers' : meta.description}
+                  </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Security Headers */}
+          {entry.security && (
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-sm font-semibold text-white">Security Headers</h3>
+                <div className="flex items-center gap-1.5 bg-[#141414] border border-[#1A1A1A] rounded-md px-2 py-0.5">
+                  <Shield className="w-3 h-3 text-[#A0A0A0]" />
+                  <span className={`text-xs font-mono font-bold ${
+                    entry.security.securityScore >= 70 ? 'text-emerald-400' :
+                    entry.security.securityScore >= 40 ? 'text-amber-400' :
+                    'text-red-400'
+                  }`}>
+                    {entry.security.securityScore}/100
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {entry.security.findings.map(f => (
+                  <div key={f.key} className={`bg-[#141414] border rounded-lg p-2.5 flex items-center gap-2.5 ${
+                    f.present ? 'border-emerald-500/20' : 'border-red-500/20'
+                  }`}>
+                    {f.present ? (
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    ) : (
+                      <ShieldX className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <span className="text-xs text-[#A0A0A0] block truncate">{f.label}</span>
+                      <span className="text-[10px] text-[#3A3A3A]">{f.present ? 'Present' : 'Missing'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* AI Analysis Summary */}
           {entry.aiAnalysis && (

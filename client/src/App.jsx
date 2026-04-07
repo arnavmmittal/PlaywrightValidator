@@ -4,6 +4,7 @@ import { HeroSection } from './components/leaderboard/HeroSection';
 import { LeaderboardTable } from './components/leaderboard/LeaderboardTable';
 import { BenchmarkProgress } from './components/leaderboard/BenchmarkProgress';
 import { SiteDetailDrawer } from './components/leaderboard/SiteDetailDrawer';
+import { HowItWorks } from './components/leaderboard/HowItWorks';
 import { X, CheckCircle, AlertTriangle, Info, Zap, Github } from 'lucide-react';
 
 const API_BASE = '';
@@ -253,6 +254,9 @@ function App() {
             onSelectEntry={setSelectedEntry}
           />
         </section>
+
+        {/* How It Works */}
+        <HowItWorks />
       </main>
 
       {/* Site Detail Drawer */}

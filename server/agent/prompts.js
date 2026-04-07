@@ -187,7 +187,10 @@ You'll receive a CollectionResult JSON containing:
 - **thirdParty**: Third-party domains, script counts, blocking scripts
 - **dom**: Node count, max depth, iframe count
 - **caching**: Immutable assets, no-cache assets, CDN detection
+- **security**: Security header analysis — HTTPS, HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy with a deterministic score
 - **screenshot**: Visual snapshot of the page
+
+Note: All measurements are taken under simulated "Simulated 4G" network conditions (1.5 Mbps down, 750 Kbps up, 150ms latency) to reflect realistic user experience. TTFB, FCP, and LCP values include simulated network latency.
 
 ## Analysis Requirements
 
@@ -202,7 +205,7 @@ You MUST produce a thorough analysis covering:
    - Bad TTFB? → No CDN? Server-side rendering without caching? Geographic distance?
    - Bad TBT? → Heavy JavaScript bundles? Third-party scripts blocking main thread?
 
-3. **Architecture Analysis**: What rendering strategy does the site use and how does it impact performance? How efficient are the bundles? Is the CDN/caching strategy good? Are images optimized? What's the third-party script cost?
+3. **Architecture Analysis**: What rendering strategy does the site use and how does it impact performance? How efficient are the bundles? Is the CDN/caching strategy good? Are images optimized? What's the third-party script cost? What's the security posture — which critical headers are missing?
 
 4. **Top Recommendations**: 3-5 specific, actionable recommendations. Not generic advice like "optimize images" — specific: "The hero image is a 240KB JPEG; convert to WebP with quality 80 and enable lazy loading for below-fold images."
 

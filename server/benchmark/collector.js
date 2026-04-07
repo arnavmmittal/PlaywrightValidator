@@ -9,11 +9,20 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { computeSecurityScore } = require('../utils/security-scoring');
 
 const STABILIZE_DELAY_MS = 5000;
 const NAV_TIMEOUT_MS = 30000;
 const NUM_RUNS = 3;
 const SCREENSHOTS_DIR = path.join(__dirname, '../../screenshots');
+
+// Network throttling — simulates realistic user conditions (matches Lighthouse "applied throttling")
+const THROTTLE_PROFILE = {
+  name: 'Simulated 4G',
+  downloadThroughput: Math.floor(1.5 * 1024 * 1024 / 8), // 1.5 Mbps in bytes/s
+  uploadThroughput: Math.floor(750 * 1024 / 8),           // 750 Kbps in bytes/s
+  latency: 150,                                            // 150ms RTT
+};
 
 /**
  * Collect all performance data for a URL.
@@ -54,6 +63,11 @@ async function collectPerformanceData(url, broadcast = () => {}) {
       domain: _extractDomain(url),
       collectedAt: new Date().toISOString(),
       vitals,
+      throttleProfile: THROTTLE_PROFILE.name,
+      httpStatus: firstRun.httpStatus,
+      isErrorPage: firstRun.httpStatus >= 400,
+      mainDocHeaders: firstRun.mainDocHeaders,
+      security: firstRun.security,
       resources: firstRun.resources,
       rendering: firstRun.rendering,
       images: firstRun.images,
@@ -85,6 +99,15 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
   });
   const page = await context.newPage();
 
+  // Apply network throttling via Chrome DevTools Protocol
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false,
+    downloadThroughput: THROTTLE_PROFILE.downloadThroughput,
+    uploadThroughput: THROTTLE_PROFILE.uploadThroughput,
+    latency: THROTTLE_PROFILE.latency,
+  });
+
   const networkRequests = [];
   const consoleErrors = [];
 
@@ -104,11 +127,15 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
     }
   });
 
-  // Navigate
+  // Navigate — capture response for HTTP status + headers
   broadcast({ type: 'collector_status', phase: 'navigating', message: 'Navigating to site...' });
-  await page.goto(url, { waitUntil: 'commit', timeout: NAV_TIMEOUT_MS });
+  const navResponse = await page.goto(url, { waitUntil: 'commit', timeout: NAV_TIMEOUT_MS });
+  const httpStatus = navResponse?.status() ?? null;
+  const mainDocHeaders = navResponse ? navResponse.headers() : {};
 
   // Set up performance observers BEFORE load completes
+  // .catch() attached immediately to prevent unhandled rejection if context is destroyed by navigation
+  const FALLBACK_VITALS = { lcp: null, fcp: null, cls: 0, longTasks: [], ttfb: null };
   const vitalsPromise = page.evaluate((delay) => {
     return new Promise((resolve) => {
       const vitals = { lcp: null, fcp: null, cls: 0, longTasks: [] };
@@ -152,31 +179,44 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
         resolve(vitals);
       }, delay);
     });
-  }, STABILIZE_DELAY_MS);
+  }, STABILIZE_DELAY_MS).catch(() => FALLBACK_VITALS);
 
   broadcast({ type: 'collector_status', phase: 'vitals', message: 'Measuring Core Web Vitals...' });
   await page.waitForLoadState('load').catch(() => {});
-  const rawVitals = await vitalsPromise;
+
+  // Await vitals — may fail if page navigated (e.g. redirect destroyed context)
+  let rawVitals;
+  try {
+    rawVitals = await vitalsPromise;
+  } catch {
+    // Context destroyed by navigation — use fallback empty vitals
+    rawVitals = { lcp: null, fcp: null, cls: 0, longTasks: [], ttfb: null };
+  }
 
   // Compute TBT
   let tbt = 0;
-  for (const task of rawVitals.longTasks) {
+  for (const task of (rawVitals.longTasks || [])) {
     if (task.duration > 50) tbt += task.duration - 50;
   }
 
-  // Navigation timing
-  const navTiming = await page.evaluate(() => {
-    const nav = performance.getEntriesByType('navigation')[0];
-    return nav ? {
-      dns: Math.round(nav.domainLookupEnd - nav.domainLookupStart),
-      tcp: Math.round(nav.connectEnd - nav.connectStart),
-      ttfb: Math.round(nav.responseStart - nav.requestStart),
-      domContentLoaded: Math.round(nav.domContentLoadedEventEnd - nav.startTime),
-      loadComplete: Math.round(nav.loadEventEnd - nav.startTime),
-      transferSize: nav.transferSize,
-      protocol: nav.nextHopProtocol || 'unknown',
-    } : null;
-  });
+  // Navigation timing — may also fail on context destruction
+  let navTiming = null;
+  try {
+    navTiming = await page.evaluate(() => {
+      const nav = performance.getEntriesByType('navigation')[0];
+      return nav ? {
+        dns: Math.round(nav.domainLookupEnd - nav.domainLookupStart),
+        tcp: Math.round(nav.connectEnd - nav.connectStart),
+        ttfb: Math.round(nav.responseStart - nav.requestStart),
+        domContentLoaded: Math.round(nav.domContentLoadedEventEnd - nav.startTime),
+        loadComplete: Math.round(nav.loadEventEnd - nav.startTime),
+        transferSize: nav.transferSize,
+        protocol: nav.nextHopProtocol || 'unknown',
+      } : null;
+    });
+  } catch {
+    // Silently fall back to null
+  }
 
   const runData = {
     vitals: {
@@ -187,24 +227,35 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
       tbt: Math.round(tbt),
       inp: null, // INP requires real user interaction, not measurable synthetically
     },
+    httpStatus,
+    mainDocHeaders,
     navTiming,
     consoleErrors: consoleErrors.slice(0, 10),
   };
 
   // Static analysis — only on first run (doesn't change between runs)
   if (collectStatic) {
-    broadcast({ type: 'collector_status', phase: 'resources', message: 'Analyzing resources & bundles...' });
-    runData.resources = await _collectResources(page, networkRequests);
-    runData.rendering = await _detectRendering(page);
-    runData.images = await _auditImages(page);
-    runData.thirdParty = _analyzeThirdParty(networkRequests, url);
-    broadcast({ type: 'collector_status', phase: 'dom', message: 'Inspecting DOM & caching...' });
-    runData.dom = await _analyzeDom(page);
-    runData.caching = _analyzeCaching(networkRequests);
-    broadcast({ type: 'collector_status', phase: 'screenshot', message: 'Taking screenshot...' });
-    runData.screenshot = await _takeScreenshot(page, _extractDomain(url));
+    try {
+      broadcast({ type: 'collector_status', phase: 'resources', message: 'Analyzing resources & bundles...' });
+      runData.resources = await _collectResources(page, networkRequests);
+      runData.rendering = await _detectRendering(page);
+      runData.images = await _auditImages(page);
+      runData.thirdParty = _analyzeThirdParty(networkRequests, url);
+      broadcast({ type: 'collector_status', phase: 'dom', message: 'Inspecting DOM & caching...' });
+      runData.dom = await _analyzeDom(page);
+      runData.caching = _analyzeCaching(networkRequests);
+      // Security headers analysis (deterministic — header presence/absence)
+      broadcast({ type: 'collector_status', phase: 'security', message: 'Analyzing security headers...' });
+      runData.security = computeSecurityScore(mainDocHeaders, page.url());
+      broadcast({ type: 'collector_status', phase: 'screenshot', message: 'Taking screenshot...' });
+      runData.screenshot = await _takeScreenshot(page, _extractDomain(url), httpStatus);
+    } catch (err) {
+      // Some page.evaluate calls may fail on redirect-heavy sites
+      broadcast({ type: 'collector_status', phase: 'resources', message: `Static analysis partially failed: ${err.message}` });
+    }
   }
 
+  await cdp.detach().catch(() => {});
   await context.close();
   return runData;
 }
@@ -467,7 +518,10 @@ function _analyzeCaching(networkRequests) {
 /**
  * Check if the page appears to be a block/error page rather than real content.
  */
-async function _isBlockedPage(page) {
+async function _isBlockedPage(page, httpStatus) {
+  // HTTP error status is a definitive signal
+  if (httpStatus && httpStatus >= 400) return true;
+
   try {
     const text = await page.evaluate(() => document.body?.innerText?.toLowerCase()?.slice(0, 2000) || '');
     const blockPatterns = [
@@ -490,10 +544,10 @@ async function _isBlockedPage(page) {
  * Take a screenshot and save to disk. Returns the path or a blocked notice.
  * Screenshots are served via /screenshots/:filename by the Express static middleware.
  */
-async function _takeScreenshot(page, domain) {
+async function _takeScreenshot(page, domain, httpStatus) {
   try {
     // Check if the page looks like a block/captcha page
-    const blocked = await _isBlockedPage(page);
+    const blocked = await _isBlockedPage(page, httpStatus);
     if (blocked) {
       return { blocked: true, message: 'Site blocked automated browser access' };
     }

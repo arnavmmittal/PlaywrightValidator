@@ -246,9 +246,10 @@ const TOOL_DEFINITIONS = [
             bundleEfficiency: { type: 'string', description: 'Analysis of JS/CSS bundle sizes and loading strategy' },
             cdnAndCaching: { type: 'string', description: 'CDN usage, cache headers, edge delivery analysis' },
             imageOptimization: { type: 'string', description: 'Image formats, lazy loading, sizing analysis' },
-            thirdPartyImpact: { type: 'string', description: 'Third-party scripts and their performance cost' }
+            thirdPartyImpact: { type: 'string', description: 'Third-party scripts and their performance cost' },
+            securityPosture: { type: 'string', description: 'Security header analysis — HTTPS enforcement, HSTS, CSP, and other security headers. Note which critical headers are missing.' }
           },
-          required: ['renderingStrategy', 'bundleEfficiency', 'cdnAndCaching', 'imageOptimization', 'thirdPartyImpact']
+          required: ['renderingStrategy', 'bundleEfficiency', 'cdnAndCaching', 'imageOptimization', 'thirdPartyImpact', 'securityPosture']
         },
         topRecommendations: {
           type: 'array',

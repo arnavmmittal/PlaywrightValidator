@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Eye } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Eye, FlaskConical, Shield } from 'lucide-react';
 import { GradeBadge } from './GradeBadge';
 import { MetricDot } from './MetricDot';
 import { CategoryPill } from './CategoryPill';
@@ -19,7 +19,12 @@ function vitalVal(v) { return v?.value ?? v?.median ?? null; }
 const METRIC_COLUMNS = [
   { key: 'lcp', label: 'LCP', unit: 'ms', format: (v) => vitalVal(v) != null ? `${Math.round(vitalVal(v))}` : '—' },
   { key: 'fcp', label: 'FCP', unit: 'ms', format: (v) => vitalVal(v) != null ? `${Math.round(vitalVal(v))}` : '—' },
-  { key: 'cls', label: 'CLS', unit: '', format: (v) => vitalVal(v) != null ? vitalVal(v).toFixed(3) : '—' },
+  { key: 'cls', label: 'CLS', unit: '', format: (v) => {
+    const val = vitalVal(v);
+    if (val == null) return '—';
+    if (val < 0.001) return 'Synthetic';
+    return val.toFixed(3);
+  }},
   { key: 'ttfb', label: 'TTFB', unit: 'ms', format: (v) => vitalVal(v) != null ? `${Math.round(vitalVal(v))}` : '—' },
 ];
 
@@ -29,6 +34,7 @@ const SORTABLE_COLUMNS = [
   { key: 'fcp', label: 'FCP' },
   { key: 'cls', label: 'CLS' },
   { key: 'ttfb', label: 'TTFB' },
+  { key: 'security', label: 'Security' },
 ];
 
 function getVitalValue(entry, key) {
@@ -46,8 +52,8 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
       setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
     } else {
       setSortKey(key);
-      // Score sorts desc by default, metrics sort asc (lower is better)
-      setSortDir(key === 'overallScore' ? 'desc' : 'asc');
+      // Score/security sort desc by default, metrics sort asc (lower is better)
+      setSortDir(key === 'overallScore' || key === 'security' ? 'desc' : 'asc');
     }
   };
 
@@ -71,6 +77,9 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
       if (sortKey === 'overallScore') {
         aVal = a.overallScore ?? 0;
         bVal = b.overallScore ?? 0;
+      } else if (sortKey === 'security') {
+        aVal = a.security?.securityScore ?? 0;
+        bVal = b.security?.securityScore ?? 0;
       } else {
         aVal = getVitalValue(a, sortKey);
         bVal = getVitalValue(b, sortKey);
@@ -153,13 +162,21 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
                     </span>
                   </th>
                 ))}
+                <th
+                  className="px-3 py-2.5 text-[10px] font-medium text-[#3A3A3A] uppercase tracking-wider cursor-pointer select-none hover:text-[#666666] transition-colors hidden lg:table-cell"
+                  onClick={() => handleSort('security')}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <Shield className="w-3 h-3" /> Sec <SortIcon column="security" />
+                  </span>
+                </th>
                 <th className="px-3 py-2.5 w-10" />
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6 + METRIC_COLUMNS.length} className="text-center text-[#3A3A3A] text-sm py-12">
+                  <td colSpan={7 + METRIC_COLUMNS.length} className="text-center text-[#3A3A3A] text-sm py-12">
                     {entries.length === 0 ? 'No sites benchmarked yet.' : 'No results match your filters.'}
                   </td>
                 </tr>
@@ -175,9 +192,18 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
                       {i + 1}
                     </td>
 
-                    {/* Domain */}
+                    {/* Domain + AI insight */}
                     <td className="px-3 py-3">
                       <FaviconCell domain={entry.domain} />
+                      {entry.status === 'error' ? (
+                        <p className="text-[10px] text-red-400 mt-0.5">
+                          HTTP {entry.httpStatus} — Error page
+                        </p>
+                      ) : entry.aiAnalysis && (
+                        <p className="text-[10px] text-[#3A3A3A] mt-0.5 truncate max-w-[260px] leading-tight">
+                          {entry.aiAnalysis.length > 80 ? entry.aiAnalysis.slice(0, 80) + '…' : entry.aiAnalysis}
+                        </p>
+                      )}
                     </td>
 
                     {/* Category */}
@@ -205,17 +231,38 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
                     {/* Vitals */}
                     {METRIC_COLUMNS.map(col => {
                       const vital = entry.vitals?.[col.key];
+                      const formatted = col.format(vital);
+                      const isSynthetic = formatted === 'Synthetic';
                       return (
                         <td key={col.key} className="px-3 py-3 hidden lg:table-cell">
                           <div className="inline-flex items-center gap-1.5">
-                            <MetricDot rating={vital?.rating} />
-                            <span className="font-mono text-xs text-[#A0A0A0]">
-                              {col.format(vital)}
+                            {isSynthetic ? (
+                              <FlaskConical className="w-3 h-3 text-[#3A3A3A]" />
+                            ) : (
+                              <MetricDot rating={vital?.rating} />
+                            )}
+                            <span className={`font-mono text-xs ${isSynthetic ? 'text-[#3A3A3A] italic' : 'text-[#A0A0A0]'}`} title={isSynthetic ? 'CLS is near-zero in synthetic (headless) testing — real user data may differ' : undefined}>
+                              {formatted}
                             </span>
                           </div>
                         </td>
                       );
                     })}
+
+                    {/* Security */}
+                    <td className="px-3 py-3 hidden lg:table-cell">
+                      {entry.security ? (
+                        <span className={`font-mono text-xs ${
+                          entry.security.securityScore >= 70 ? 'text-emerald-400' :
+                          entry.security.securityScore >= 40 ? 'text-amber-400' :
+                          'text-red-400'
+                        }`}>
+                          {entry.security.securityScore}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-[#3A3A3A]">—</span>
+                      )}
+                    </td>
 
                     {/* Action */}
                     <td className="px-3 py-3">
