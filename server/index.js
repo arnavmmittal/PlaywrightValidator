@@ -7,6 +7,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { TestOrchestrator, loadReport, getReportHistory, compareReports } = require('./orchestrator');
 const { AITestOrchestrator } = require('./agent/ai-orchestrator');
+const leaderboardRouter = require('./routes/leaderboard');
 
 const app = express();
 const server = http.createServer(app);
@@ -46,6 +47,9 @@ if (process.env.NODE_ENV === 'production') {
 
 // Serve screenshots
 app.use('/screenshots', express.static(path.join(__dirname, '../screenshots')));
+
+// Leaderboard API (broadcastToSession is set after its definition below)
+app.use('/api/leaderboard', leaderboardRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -131,7 +135,7 @@ app.get('/api/ai/status', (req, res) => {
 
 // Start AI-powered test run
 app.post('/api/test/ai-run', async (req, res) => {
-  const { url, agentMode, options } = req.body;
+  const { url, agentMode, aiModel, options } = req.body;
 
   if (!url) {
     return res.status(400).json({ error: 'URL is required' });
@@ -172,7 +176,7 @@ app.post('/api/test/ai-run', async (req, res) => {
   setImmediate(async () => {
     const orchestrator = new AITestOrchestrator(
       sessionId,
-      { url, agentMode: mode, options: options || {} },
+      { url, agentMode: mode, aiModel: aiModel || 'haiku', options: options || {} },
       (msg) => broadcastToSession(sessionId, msg)
     );
 
@@ -326,6 +330,9 @@ function broadcastToSession(sessionId, message) {
     }
   });
 }
+
+// Make broadcastToSession available to routers (after function definition)
+app.set('broadcastToSession', broadcastToSession);
 
 // Catch-all for SPA in production
 if (process.env.NODE_ENV === 'production') {
