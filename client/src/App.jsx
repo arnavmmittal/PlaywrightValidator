@@ -1,17 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ConfigPanel } from './components/ConfigPanel';
-import { ExecutionPanel } from './components/ExecutionPanel';
-import { ReportPanel } from './components/ReportPanel';
-import { HistoryPanel } from './components/HistoryPanel';
 import { useWebSocket } from './hooks/useWebSocket';
-import { X, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { HeroSection } from './components/leaderboard/HeroSection';
+import { LeaderboardTable } from './components/leaderboard/LeaderboardTable';
+import { BenchmarkProgress } from './components/leaderboard/BenchmarkProgress';
+import { SiteDetailDrawer } from './components/leaderboard/SiteDetailDrawer';
+import { X, CheckCircle, AlertTriangle, Info, Zap, Github } from 'lucide-react';
 
-const TABS = [
-  { id: 'configure', label: 'Configure' },
-  { id: 'execution', label: 'Execution' },
-  { id: 'report', label: 'Report' },
-  { id: 'history', label: 'History' },
-];
+const API_BASE = '';
 
 const TOAST_ICONS = {
   success: CheckCircle,
@@ -26,27 +21,22 @@ const TOAST_COLORS = {
 };
 
 function App() {
-  const [activeTab, setActiveTab] = useState('configure');
-  const [sessionId, setSessionId] = useState(null);
-  const [testConfig, setTestConfig] = useState(null);
-  const [toasts, setToasts] = useState([]);
-  const [reportHistory, setReportHistory] = useState([]);
-  const [previousReport, setPreviousReport] = useState(null);
+  // Leaderboard state
+  const [entries, setEntries] = useState([]);
+  const [selectedEntry, setSelectedEntry] = useState(null);
 
-  const [isAiMode, setIsAiMode] = useState(false);
-  const [aiAvailable, setAiAvailable] = useState(false);
+  // Benchmark state
+  const [benchmarkJobId, setBenchmarkJobId] = useState(null);
+  const [benchmarkDomain, setBenchmarkDomain] = useState(null);
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [rateLimitRemaining, setRateLimitRemaining] = useState(2);
 
-  const { progress, currentTest, logs, report, error, bugsFound, testResults, aiState, reset } = useWebSocket(sessionId);
-
-  // Check AI availability on mount
-  useEffect(() => {
-    fetch('/api/ai/status')
-      .then(r => r.json())
-      .then(data => setAiAvailable(data.available))
-      .catch(() => setAiAvailable(false));
-  }, []);
+  // WebSocket for real-time benchmark progress
+  const { messages, report, error, reset } = useWebSocket(benchmarkJobId);
 
   // Toast system
+  const [toasts, setToasts] = useState([]);
+
   const addToast = useCallback((message, type = 'info') => {
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type, timestamp: Date.now() }]);
@@ -56,260 +46,233 @@ function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // Auto-remove toasts after 3s
   useEffect(() => {
     if (toasts.length === 0) return;
-
     const timers = toasts.map(toast => {
       const remaining = 3000 - (Date.now() - toast.timestamp);
-      if (remaining <= 0) {
-        removeToast(toast.id);
-        return null;
-      }
+      if (remaining <= 0) { removeToast(toast.id); return null; }
       return setTimeout(() => removeToast(toast.id), remaining);
     });
-
-    return () => {
-      timers.forEach(t => { if (t) clearTimeout(t); });
-    };
+    return () => timers.forEach(t => { if (t) clearTimeout(t); });
   }, [toasts, removeToast]);
-
-  // Auto-transition to report when complete
-  useEffect(() => {
-    if (report) {
-      const timer = setTimeout(() => {
-        setActiveTab('report');
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [report]);
-
-  // Fetch history for comparison when report arrives
-  useEffect(() => {
-    if (report?.url) {
-      fetchHistoryForComparison(report.url);
-    }
-  }, [report]);
-
-  const fetchHistoryForComparison = async (url) => {
-    try {
-      const response = await fetch('/api/reports/history');
-      if (!response.ok) return;
-      const data = await response.json();
-      const history = data.reports || [];
-      setReportHistory(history);
-
-      // Find the most recent previous report for the same URL
-      const prev = history.find(r =>
-        r.url === url && r.sessionId !== sessionId
-      );
-      setPreviousReport(prev || null);
-    } catch {
-      // Non-critical, don't bother the user
-    }
-  };
 
   // Show WS errors as toasts
   useEffect(() => {
-    if (error) {
-      addToast(error, 'error');
-    }
+    if (error) addToast(error, 'error');
   }, [error, addToast]);
 
-  const handleStartTests = async (config) => {
-    try {
-      setTestConfig(config);
-      setPreviousReport(null);
-      reset();
+  // Fetch leaderboard on mount
+  useEffect(() => {
+    fetchLeaderboard();
+    fetchRateLimit();
+  }, []);
 
-      const response = await fetch('/api/test/run', {
+  // When benchmark completes via WebSocket, refresh leaderboard
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.type === 'benchmark_complete') {
+      setIsBenchmarking(false);
+      setBenchmarkJobId(null);
+      addToast(`${lastMsg.entry.domain} benchmarked: ${lastMsg.entry.grade} (${lastMsg.entry.overallScore}/100)`, 'success');
+      fetchLeaderboard();
+      fetchRateLimit();
+      // Open the detail drawer for the new entry
+      setSelectedEntry(lastMsg.entry);
+    }
+  }, [messages]);
+
+  async function fetchLeaderboard() {
+    try {
+      const res = await fetch(`${API_BASE}/api/leaderboard`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setEntries(data.entries || []);
+    } catch {
+      // Silent fail on initial load
+    }
+  }
+
+  async function fetchRateLimit() {
+    try {
+      const res = await fetch(`${API_BASE}/api/leaderboard/rate-limit`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRateLimitRemaining(data.benchmark?.remaining ?? 2);
+    } catch {
+      // Default to 2
+    }
+  }
+
+  async function handleBenchmark(url) {
+    if (isBenchmarking) return;
+
+    try {
+      reset();
+      setIsBenchmarking(true);
+
+      const res = await fetch(`${API_BASE}/api/leaderboard/benchmark`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify({ url }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to start tests');
-      }
+      const data = await res.json();
 
-      const { sessionId: newSessionId } = await response.json();
-      setSessionId(newSessionId);
-      setIsAiMode(false);
-      setActiveTab('execution');
-      addToast('Test suite started', 'success');
-    } catch (e) {
-      addToast('Error starting tests: ' + e.message, 'error');
-    }
-  };
-
-  const handleStartAiTests = async (config) => {
-    try {
-      setTestConfig(config);
-      setPreviousReport(null);
-      reset();
-
-      const response = await fetch('/api/test/ai-run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to start AI tests');
-      }
-
-      const { sessionId: newSessionId } = await response.json();
-      setSessionId(newSessionId);
-      setIsAiMode(true);
-      setActiveTab('execution');
-      addToast(`AI ${config.agentMode} agent launched`, 'success');
-    } catch (e) {
-      addToast('Error: ' + e.message, 'error');
-    }
-  };
-
-  const handleNewTests = () => {
-    setSessionId(null);
-    setTestConfig(null);
-    setPreviousReport(null);
-    reset();
-    setActiveTab('configure');
-  };
-
-  const handleLoadReport = async (historicSessionId) => {
-    try {
-      const response = await fetch(`/api/report/${historicSessionId}`);
-      if (!response.ok) throw new Error('Failed to load report');
-      const data = await response.json();
-
-      // API returns report directly, not nested under .report
-      // If it returned {status: 'running'}, there's no report yet
-      if (data.status && !data.bugs) {
-        addToast(`Report not ready yet (status: ${data.status})`, 'info');
+      if (!res.ok) {
+        setIsBenchmarking(false);
+        if (res.status === 429) {
+          addToast(data.message || 'Rate limit exceeded', 'error');
+          setRateLimitRemaining(0);
+        } else {
+          addToast(data.error || 'Benchmark failed', 'error');
+        }
         return;
       }
 
-      // Find previous report for comparison
-      const prev = reportHistory.find(r =>
-        r.url === data.url && r.sessionId !== historicSessionId
-      );
-      setPreviousReport(prev || null);
+      // Already benchmarked recently
+      if (data.status === 'already_benchmarked') {
+        setIsBenchmarking(false);
+        addToast(data.message, 'info');
+        if (data.entry) setSelectedEntry(data.entry);
+        return;
+      }
 
-      reset();
-      setSessionId(null);
-      setTestConfig({ url: data.url, tests: [] });
-      setLoadedReport(data);
-      setActiveTab('report');
-      addToast('Report loaded from history', 'info');
+      // Queued — connect WebSocket
+      setBenchmarkJobId(data.jobId);
+      // Extract domain for progress display
+      try {
+        const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+        setBenchmarkDomain(parsed.hostname.replace(/^www\./, ''));
+      } catch {
+        setBenchmarkDomain(url);
+      }
+
+      addToast(`Benchmark queued (position ${data.position})`, 'info');
     } catch (e) {
-      addToast('Failed to load report: ' + e.message, 'error');
+      setIsBenchmarking(false);
+      addToast('Network error: ' + e.message, 'error');
     }
-  };
+  }
 
-  // Support loading historical reports
-  const [loadedReport, setLoadedReport] = useState(null);
-  const activeReport = report || loadedReport;
+  function handleCancelBenchmark() {
+    setIsBenchmarking(false);
+    setBenchmarkJobId(null);
+    setBenchmarkDomain(null);
+    reset();
+  }
+
+  // Build recent sites for hero ticker from first 6 entries
+  const recentSites = entries.slice(0, 6).map(e => ({
+    domain: e.domain,
+    grade: e.grade,
+    score: e.overallScore,
+  }));
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D]">
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#0D0D0D] border-b border-[#2A2A2A]">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🎭</span>
-            <span className="text-xl font-semibold">Playwright QA Suite</span>
+      <header className="sticky top-0 z-30 bg-[#0D0D0D]/90 backdrop-blur-sm border-b border-[#1A1A1A]">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-[#E8FF47]" />
+            <span className="font-semibold text-sm">PerfRank</span>
+            <span className="text-[10px] text-[#3A3A3A] font-mono ml-1">beta</span>
           </div>
-
-          {/* Tabs */}
-          <nav className="flex gap-1">
-            {TABS.map(tab => {
-              const isActive = activeTab === tab.id;
-              const isDisabled =
-                (tab.id === 'execution' && !sessionId) ||
-                (tab.id === 'report' && !activeReport);
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => !isDisabled && setActiveTab(tab.id)}
-                  disabled={isDisabled}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    isActive
-                      ? 'bg-[#E8FF47]/10 text-[#E8FF47] border border-[#E8FF47]'
-                      : isDisabled
-                      ? 'text-[#3A3A3A] cursor-not-allowed'
-                      : 'text-[#7B8794] hover:text-white hover:bg-[#1A1A1A]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-[#3A3A3A]">{entries.length} sites ranked</span>
+            <a
+              href="https://github.com/arnavmmittal/PlaywrightValidator"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#3A3A3A] hover:text-[#666666] transition-colors"
+            >
+              <Github className="w-4 h-4" />
+            </a>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main>
-        {activeTab === 'configure' && (
-          <ConfigPanel
-            onStartTests={handleStartTests}
-            onStartAiTests={handleStartAiTests}
-            aiAvailable={aiAvailable}
+      <main className="max-w-6xl mx-auto px-4">
+        {/* Hero / Benchmark Progress */}
+        {isBenchmarking ? (
+          <div className="py-12">
+            <BenchmarkProgress
+              domain={benchmarkDomain}
+              messages={messages}
+              onCancel={handleCancelBenchmark}
+            />
+          </div>
+        ) : (
+          <HeroSection
+            onBenchmark={handleBenchmark}
+            recentSites={recentSites}
+            isLoading={isBenchmarking}
+            rateLimitRemaining={rateLimitRemaining}
           />
         )}
-        {activeTab === 'execution' && (
-          <ExecutionPanel
-            url={testConfig?.url}
-            progress={progress}
-            currentTest={currentTest}
-            logs={logs}
-            isComplete={report !== null}
-            testResults={testResults}
-            bugsFound={bugsFound}
-            selectedTests={testConfig?.tests}
-            isAiMode={isAiMode}
-            aiState={aiState}
+
+        {/* Leaderboard */}
+        <section className="py-8">
+          <LeaderboardTable
+            entries={entries}
+            onSelectEntry={setSelectedEntry}
           />
-        )}
-        {activeTab === 'report' && (
-          <ReportPanel
-            report={activeReport}
-            previousReport={previousReport}
-            onNewTests={handleNewTests}
-            addToast={addToast}
-          />
-        )}
-        {activeTab === 'history' && (
-          <HistoryPanel onLoadReport={handleLoadReport} />
-        )}
+        </section>
       </main>
 
+      {/* Site Detail Drawer */}
+      {selectedEntry && (
+        <SiteDetailDrawer
+          entry={selectedEntry}
+          onClose={() => setSelectedEntry(null)}
+        />
+      )}
+
       {/* Toast Notifications */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+      <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
         {toasts.map(toast => {
           const ToastIcon = TOAST_ICONS[toast.type] || Info;
           const colors = TOAST_COLORS[toast.type] || TOAST_COLORS.info;
-
           return (
             <div
               key={toast.id}
-              className={`${colors.bg} ${colors.text} px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 pointer-events-auto animate-slide-in-right max-w-sm`}
+              className={`${colors.bg} ${colors.text} px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 pointer-events-auto max-w-sm`}
+              style={{ animation: 'slide-in-right 0.3s ease-out' }}
             >
               <ToastIcon size={16} className="shrink-0" />
               <span className="text-sm font-medium flex-1">{toast.message}</span>
-              <button
-                onClick={() => removeToast(toast.id)}
-                className="opacity-70 hover:opacity-100 transition-opacity shrink-0"
-              >
+              <button onClick={() => removeToast(toast.id)} className="opacity-70 hover:opacity-100 shrink-0">
                 <X size={14} />
               </button>
             </div>
           );
         })}
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-[#1A1A1A] mt-12">
+        <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#3A3A3A]">
+          <div className="flex items-center gap-2">
+            <Zap className="w-3.5 h-3.5 text-[#E8FF47]" />
+            <span>PerfRank — Deterministic benchmarks + AI analysis</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span>Playwright collector</span>
+            <span className="text-[#1A1A1A]">|</span>
+            <span>Claude AI analyst</span>
+            <span className="text-[#1A1A1A]">|</span>
+            <span>Open source</span>
+          </div>
+        </div>
+      </footer>
+
+      {/* Global animations */}
+      <style>{`
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
