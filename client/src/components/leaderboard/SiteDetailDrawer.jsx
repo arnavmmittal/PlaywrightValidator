@@ -3,8 +3,8 @@
  * Shows score gauge, vitals grid, AI analysis, recommendations, screenshot.
  */
 
-import { useEffect } from 'react';
-import { X, ExternalLink, Clock, ChevronDown, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, ExternalLink, Clock, ChevronDown, Zap, Globe, Link2, Check } from 'lucide-react';
 import { ScoreArc } from './ScoreArc';
 import { GradeBadge } from './GradeBadge';
 import { MetricDot } from './MetricDot';
@@ -27,9 +27,10 @@ const IMPACT_COLORS = {
 };
 
 function formatVitalValue(key, vital) {
-  if (!vital || vital.value == null) return '—';
-  if (key === 'cls') return vital.value.toFixed(3);
-  return `${Math.round(vital.value)}${VITALS_META[key]?.unit || ''}`;
+  const val = vital?.value ?? vital?.median;
+  if (val == null) return '—';
+  if (key === 'cls') return val.toFixed(3);
+  return `${Math.round(val)}${VITALS_META[key]?.unit || ''}`;
 }
 
 function timeAgo(isoString) {
@@ -54,10 +55,20 @@ export function SiteDetailDrawer({ entry, onClose }) {
     };
   }, [onClose]);
 
+  const [copied, setCopied] = useState(false);
+
   if (!entry) return null;
 
   const findings = entry.aiFindings;
   const arch = findings?.architectureAnalysis;
+
+  const shareUrl = `${window.location.origin}/site/${entry.domain}`;
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <>
@@ -107,13 +118,22 @@ export function SiteDetailDrawer({ entry, onClose }) {
               </div>
             </div>
 
-            {/* Close */}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-[#141414] text-[#3A3A3A] hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Actions */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleCopyLink}
+                className="p-2 rounded-lg hover:bg-[#141414] text-[#3A3A3A] hover:text-white transition-colors"
+                title="Copy share link"
+              >
+                {copied ? <Check className="w-4 h-4 text-[#4ECDC4]" /> : <Link2 className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-[#141414] text-[#3A3A3A] hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Vitals Grid */}
@@ -214,13 +234,23 @@ export function SiteDetailDrawer({ entry, onClose }) {
           {entry.screenshot && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-white mb-3">Screenshot</h3>
-              <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg overflow-hidden">
-                <img
-                  src={entry.screenshot.startsWith('/') ? entry.screenshot : `data:image/png;base64,${entry.screenshot}`}
-                  alt={`Screenshot of ${entry.domain}`}
-                  className="w-full max-h-[300px] object-contain object-top"
-                />
-              </div>
+              {entry.screenshot?.blocked ? (
+                <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-6 flex flex-col items-center gap-2">
+                  <Globe className="w-8 h-8 text-[#2A2A2A]" />
+                  <span className="text-xs text-[#3A3A3A]">{entry.screenshot.message || 'Site blocked automated browser access'}</span>
+                  <span className="text-[10px] text-[#2A2A2A]">Performance data was still collected successfully</span>
+                </div>
+              ) : (
+                <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg overflow-hidden">
+                  <img
+                    src={typeof entry.screenshot === 'string' && entry.screenshot.startsWith('/')
+                      ? entry.screenshot
+                      : `data:image/png;base64,${entry.screenshot}`}
+                    alt={`Screenshot of ${entry.domain}`}
+                    className="w-full max-h-[300px] object-contain object-top"
+                  />
+                </div>
+              )}
             </div>
           )}
 

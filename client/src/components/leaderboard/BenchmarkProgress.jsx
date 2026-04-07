@@ -8,16 +8,12 @@ import { useState, useEffect } from 'react';
 import { Loader2, Check, X, DollarSign, Brain, Gauge } from 'lucide-react';
 import { StreamingText } from './StreamingText';
 
-const COLLECTOR_STEPS = [
-  'Launching browser',
-  'Navigating to site',
-  'Measuring Core Web Vitals',
-  'Analyzing network requests',
-  'Detecting rendering strategy',
-  'Auditing images & resources',
-  'Checking caching & CDN',
-  'Taking screenshot',
-];
+// These match the actual messages broadcast by the collector
+const COLLECTOR_PHASES = {
+  starting: 'Launching browser...',
+  collecting: null, // Dynamic: "Collecting metrics (run X/3)..."
+  complete: 'Data collection complete',
+};
 
 function PhaseIndicator({ phase, currentPhase }) {
   const isComplete = currentPhase > phase;
@@ -42,51 +38,54 @@ function PhaseIndicator({ phase, currentPhase }) {
 }
 
 export function BenchmarkProgress({ domain, messages = [], onCancel }) {
-  const [collectorSteps, setCollectorSteps] = useState([]);
+  const [collectorMessages, setCollectorMessages] = useState([]);
+  const [currentRun, setCurrentRun] = useState(0);
+  const [totalRuns, setTotalRuns] = useState(3);
   const [aiLines, setAiLines] = useState([]);
   const [phase, setPhase] = useState(1); // 1=collecting, 2=scoring, 3=AI
   const [cost, setCost] = useState(0);
 
-  // Process incoming WebSocket messages
+  // Process ALL incoming WebSocket messages (not just latest)
   useEffect(() => {
-    if (messages.length === 0) return;
-    const latest = messages[messages.length - 1];
-
-    switch (latest.type) {
-      case 'benchmark_started':
-        setPhase(1);
-        break;
-      case 'collector_status':
-        setCollectorSteps(prev => {
-          if (prev.includes(latest.message)) return prev;
-          return [...prev, latest.message];
-        });
-        break;
-      case 'scoring_complete':
-        setPhase(2);
-        // Auto-advance to AI phase after brief pause
-        setTimeout(() => setPhase(3), 500);
-        break;
-      case 'ai_thinking':
-        setPhase(3);
-        setAiLines(prev => [...prev, latest.message]);
-        break;
-      case 'ai_commentary':
-        setAiLines(prev => [...prev, latest.text]);
-        break;
-      case 'ai_tool_call':
-        setAiLines(prev => [...prev, `→ Called ${latest.tool}${latest.input?.grade ? ` (${latest.input.grade}, ${latest.input.score}/100)` : ''}`]);
-        break;
-      case 'ai_cost_update':
-        setCost(latest.totalCost || 0);
-        break;
+    for (const msg of messages) {
+      switch (msg.type) {
+        case 'benchmark_started':
+          setPhase(1);
+          break;
+        case 'collector_status':
+          setCollectorMessages(prev => {
+            if (prev.some(m => m === msg.message)) return prev;
+            return [...prev, msg.message];
+          });
+          if (msg.run) {
+            setCurrentRun(msg.run);
+            setTotalRuns(msg.totalRuns || 3);
+          }
+          if (msg.phase === 'complete') setPhase(2);
+          break;
+        case 'scoring_complete':
+          setPhase(2);
+          setTimeout(() => setPhase(3), 500);
+          break;
+        case 'ai_thinking':
+          setPhase(3);
+          setAiLines(prev => {
+            if (prev.includes(msg.message)) return prev;
+            return [...prev, msg.message];
+          });
+          break;
+        case 'ai_commentary':
+          setAiLines(prev => [...prev, msg.text]);
+          break;
+        case 'ai_tool_call':
+          setAiLines(prev => [...prev, `→ Called ${msg.tool}${msg.input?.grade ? ` (${msg.input.grade}, ${msg.input.score}/100)` : ''}`]);
+          break;
+        case 'ai_cost_update':
+          setCost(msg.totalCost || 0);
+          break;
+      }
     }
-  }, [messages]);
-
-  const matchedSteps = COLLECTOR_STEPS.map(step => {
-    const matched = collectorSteps.some(msg => msg.toLowerCase().includes(step.toLowerCase().split(' ')[0]));
-    return { label: step, done: matched };
-  });
+  }, [messages.length]);
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -130,23 +129,40 @@ export function BenchmarkProgress({ domain, messages = [], onCancel }) {
       {/* Phase 1: Collector Progress */}
       {phase === 1 && (
         <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Gauge className="w-4 h-4 text-[#E8FF47]" />
-            <span className="text-sm text-white font-medium">Collecting performance data...</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Gauge className="w-4 h-4 text-[#E8FF47]" />
+              <span className="text-sm text-white font-medium">Collecting performance data...</span>
+            </div>
+            {currentRun > 0 && (
+              <span className="text-xs font-mono text-[#E8FF47]">
+                Run {currentRun}/{totalRuns}
+              </span>
+            )}
           </div>
-          <div className="space-y-1.5">
-            {matchedSteps.map((step, i) => (
+
+          {/* Progress bar */}
+          <div className="w-full h-1.5 bg-[#1A1A1A] rounded-full mb-4 overflow-hidden">
+            <div
+              className="h-full bg-[#E8FF47] rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${Math.max(5, (currentRun / totalRuns) * 100)}%` }}
+            />
+          </div>
+
+          {/* Status messages */}
+          <div className="space-y-1">
+            {collectorMessages.map((msg, i) => (
               <div key={i} className="flex items-center gap-2">
-                {step.done ? (
-                  <Check className="w-3 h-3 text-[#4ECDC4]" />
-                ) : (
-                  <div className="w-3 h-3 rounded-full border border-[#2A2A2A]" />
-                )}
-                <span className={`text-xs ${step.done ? 'text-[#A0A0A0]' : 'text-[#3A3A3A]'}`}>
-                  {step.label}
-                </span>
+                <Check className="w-3 h-3 text-[#4ECDC4] flex-shrink-0" />
+                <span className="text-xs text-[#A0A0A0]">{msg}</span>
               </div>
             ))}
+            {collectorMessages.length === 0 && (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-3 h-3 text-[#E8FF47] animate-spin" />
+                <span className="text-xs text-[#3A3A3A]">Starting browser...</span>
+              </div>
+            )}
           </div>
         </div>
       )}

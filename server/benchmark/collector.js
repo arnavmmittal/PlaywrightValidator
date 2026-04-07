@@ -105,6 +105,7 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
   });
 
   // Navigate
+  broadcast({ type: 'collector_status', phase: 'navigating', message: 'Navigating to site...' });
   await page.goto(url, { waitUntil: 'commit', timeout: NAV_TIMEOUT_MS });
 
   // Set up performance observers BEFORE load completes
@@ -153,6 +154,7 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
     });
   }, STABILIZE_DELAY_MS);
 
+  broadcast({ type: 'collector_status', phase: 'vitals', message: 'Measuring Core Web Vitals...' });
   await page.waitForLoadState('load').catch(() => {});
   const rawVitals = await vitalsPromise;
 
@@ -191,12 +193,15 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
 
   // Static analysis — only on first run (doesn't change between runs)
   if (collectStatic) {
+    broadcast({ type: 'collector_status', phase: 'resources', message: 'Analyzing resources & bundles...' });
     runData.resources = await _collectResources(page, networkRequests);
     runData.rendering = await _detectRendering(page);
     runData.images = await _auditImages(page);
     runData.thirdParty = _analyzeThirdParty(networkRequests, url);
+    broadcast({ type: 'collector_status', phase: 'dom', message: 'Inspecting DOM & caching...' });
     runData.dom = await _analyzeDom(page);
     runData.caching = _analyzeCaching(networkRequests);
+    broadcast({ type: 'collector_status', phase: 'screenshot', message: 'Taking screenshot...' });
     runData.screenshot = await _takeScreenshot(page, _extractDomain(url));
   }
 
@@ -460,11 +465,39 @@ function _analyzeCaching(networkRequests) {
 }
 
 /**
- * Take a screenshot and save to disk. Returns the filename (not base64).
+ * Check if the page appears to be a block/error page rather than real content.
+ */
+async function _isBlockedPage(page) {
+  try {
+    const text = await page.evaluate(() => document.body?.innerText?.toLowerCase()?.slice(0, 2000) || '');
+    const blockPatterns = [
+      'access denied', 'forbidden', 'blocked', 'captcha', 'not available in your region',
+      'enable javascript', 'please verify', 'checking your browser', 'just a moment',
+      'attention required', 'pardon our interruption', 'bot detection', 'unusual traffic',
+      "it's not you", "it's not you, it's us", 'unavailable', 'sorry',
+    ];
+    const matchCount = blockPatterns.filter(p => text.includes(p)).length;
+    // If the page has very little text AND matches a block pattern, it's likely blocked
+    if (matchCount >= 2) return true;
+    if (matchCount >= 1 && text.length < 500) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Take a screenshot and save to disk. Returns the path or a blocked notice.
  * Screenshots are served via /screenshots/:filename by the Express static middleware.
  */
 async function _takeScreenshot(page, domain) {
   try {
+    // Check if the page looks like a block/captcha page
+    const blocked = await _isBlockedPage(page);
+    if (blocked) {
+      return { blocked: true, message: 'Site blocked automated browser access' };
+    }
+
     const buffer = await page.screenshot({ type: 'png', fullPage: false });
     if (!fs.existsSync(SCREENSHOTS_DIR)) {
       fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });

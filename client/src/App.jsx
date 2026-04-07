@@ -31,6 +31,9 @@ function App() {
   const [isBenchmarking, setIsBenchmarking] = useState(false);
   const [rateLimitRemaining, setRateLimitRemaining] = useState(2);
 
+  // Deep link support
+  const [deepLinkDomain, setDeepLinkDomain] = useState(null);
+
   // WebSocket for real-time benchmark progress
   const { messages, report, error, reset } = useWebSocket(benchmarkJobId);
   const handledCompletionRef = useRef(null); // Track which jobId we've already handled
@@ -62,11 +65,37 @@ function App() {
     if (error) addToast(error, 'error');
   }, [error, addToast]);
 
-  // Fetch leaderboard on mount
+  // Fetch leaderboard on mount + handle /site/:domain deep links
   useEffect(() => {
-    fetchLeaderboard();
+    fetchLeaderboard().then(() => {
+      // Check if URL is a /site/:domain deep link
+      const match = window.location.pathname.match(/^\/site\/(.+)/);
+      if (match) {
+        const domain = decodeURIComponent(match[1]);
+        // Will be resolved after entries load (see next effect)
+        setDeepLinkDomain(domain);
+      }
+    });
     fetchRateLimit();
   }, []);
+
+  // Resolve deep link once entries are available
+  useEffect(() => {
+    if (deepLinkDomain && entries.length > 0) {
+      const entry = entries.find(e => e.domain === deepLinkDomain);
+      if (entry) setSelectedEntry(entry);
+      setDeepLinkDomain(null);
+    }
+  }, [deepLinkDomain, entries]);
+
+  // Update browser URL when drawer opens/closes (no page reload)
+  useEffect(() => {
+    if (selectedEntry) {
+      window.history.replaceState(null, '', `/site/${selectedEntry.domain}`);
+    } else if (window.location.pathname.startsWith('/site/')) {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [selectedEntry]);
 
   // When benchmark completes via WebSocket, refresh leaderboard (guard against double-fire)
   useEffect(() => {
@@ -172,31 +201,31 @@ function App() {
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-[#0D0D0D]/90 backdrop-blur-sm border-b border-[#1A1A1A]">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-30 bg-[#0D0D0D]/80 backdrop-blur-md border-b border-[#1A1A1A]">
+        <div className="px-6 lg:px-12 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
             <Zap className="w-5 h-5 text-[#E8FF47]" />
-            <span className="font-semibold text-sm">PerfRank</span>
-            <span className="text-[10px] text-[#3A3A3A] font-mono ml-1">beta</span>
+            <span className="font-bold text-base tracking-tight">PerfRank</span>
+            <span className="text-[10px] text-[#3A3A3A] bg-[#1A1A1A] px-1.5 py-0.5 rounded font-mono">beta</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-[#3A3A3A]">{entries.length} sites ranked</span>
+          <div className="flex items-center gap-5">
+            <span className="text-xs text-[#3A3A3A] hidden sm:block">{entries.length} sites ranked</span>
             <a
               href="https://github.com/arnavmmittal/PlaywrightValidator"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#3A3A3A] hover:text-[#666666] transition-colors"
+              className="text-[#3A3A3A] hover:text-white transition-colors"
             >
-              <Github className="w-4 h-4" />
+              <Github className="w-4.5 h-4.5" />
             </a>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4">
-        {/* Hero / Benchmark Progress */}
+      <main>
+        {/* Hero / Benchmark Progress — full width */}
         {isBenchmarking ? (
-          <div className="py-12">
+          <div className="py-12 px-6">
             <BenchmarkProgress
               domain={benchmarkDomain}
               messages={messages}
@@ -212,8 +241,13 @@ function App() {
           />
         )}
 
-        {/* Leaderboard */}
-        <section className="py-8">
+        {/* Leaderboard — full width with padding */}
+        <section className="py-12 px-6 lg:px-12 min-h-[50vh]">
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-lg font-semibold text-white">Leaderboard</h2>
+            <div className="flex-1 h-px bg-[#1A1A1A]" />
+            <span className="text-xs text-[#3A3A3A] font-mono">{entries.length} sites</span>
+          </div>
           <LeaderboardTable
             entries={entries}
             onSelectEntry={setSelectedEntry}
@@ -252,7 +286,7 @@ function App() {
 
       {/* Footer */}
       <footer className="border-t border-[#1A1A1A] mt-12">
-        <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#3A3A3A]">
+        <div className="px-6 lg:px-12 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#3A3A3A]">
           <div className="flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-[#E8FF47]" />
             <span>PerfRank — Deterministic benchmarks + AI analysis</span>

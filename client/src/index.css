@@ -1,7 +1,7 @@
-@import "tailwindcss";
-
-/* Custom fonts */
+/* Custom fonts — must precede Tailwind @import */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
 
 /* Custom properties */
 :root {

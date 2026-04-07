@@ -14,11 +14,13 @@ const CATEGORIES = [
   'all', 'search', 'news', 'social', 'dev-tools', 'ai', 'infra', 'e-commerce', 'reference', 'community',
 ];
 
+function vitalVal(v) { return v?.value ?? v?.median ?? null; }
+
 const METRIC_COLUMNS = [
-  { key: 'lcp', label: 'LCP', unit: 'ms', format: (v) => v?.value != null ? `${Math.round(v.value)}` : '—' },
-  { key: 'fcp', label: 'FCP', unit: 'ms', format: (v) => v?.value != null ? `${Math.round(v.value)}` : '—' },
-  { key: 'cls', label: 'CLS', unit: '', format: (v) => v?.value != null ? v.value.toFixed(3) : '—' },
-  { key: 'ttfb', label: 'TTFB', unit: 'ms', format: (v) => v?.value != null ? `${Math.round(v.value)}` : '—' },
+  { key: 'lcp', label: 'LCP', unit: 'ms', format: (v) => vitalVal(v) != null ? `${Math.round(vitalVal(v))}` : '—' },
+  { key: 'fcp', label: 'FCP', unit: 'ms', format: (v) => vitalVal(v) != null ? `${Math.round(vitalVal(v))}` : '—' },
+  { key: 'cls', label: 'CLS', unit: '', format: (v) => vitalVal(v) != null ? vitalVal(v).toFixed(3) : '—' },
+  { key: 'ttfb', label: 'TTFB', unit: 'ms', format: (v) => vitalVal(v) != null ? `${Math.round(vitalVal(v))}` : '—' },
 ];
 
 const SORTABLE_COLUMNS = [
