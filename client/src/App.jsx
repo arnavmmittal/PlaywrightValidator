@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { HeroSection } from './components/leaderboard/HeroSection';
 import { LeaderboardTable } from './components/leaderboard/LeaderboardTable';
@@ -33,6 +33,7 @@ function App() {
 
   // WebSocket for real-time benchmark progress
   const { messages, report, error, reset } = useWebSocket(benchmarkJobId);
+  const handledCompletionRef = useRef(null); // Track which jobId we've already handled
 
   // Toast system
   const [toasts, setToasts] = useState([]);
@@ -67,16 +68,16 @@ function App() {
     fetchRateLimit();
   }, []);
 
-  // When benchmark completes via WebSocket, refresh leaderboard
+  // When benchmark completes via WebSocket, refresh leaderboard (guard against double-fire)
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.type === 'benchmark_complete') {
+    if (lastMsg?.type === 'benchmark_complete' && handledCompletionRef.current !== benchmarkJobId) {
+      handledCompletionRef.current = benchmarkJobId;
       setIsBenchmarking(false);
       setBenchmarkJobId(null);
       addToast(`${lastMsg.entry.domain} benchmarked: ${lastMsg.entry.grade} (${lastMsg.entry.overallScore}/100)`, 'success');
       fetchLeaderboard();
       fetchRateLimit();
-      // Open the detail drawer for the new entry
       setSelectedEntry(lastMsg.entry);
     }
   }, [messages]);

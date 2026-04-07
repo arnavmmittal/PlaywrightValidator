@@ -4,7 +4,7 @@
  */
 
 import { useEffect } from 'react';
-import { X, ExternalLink, Clock, ChevronDown, Download, Zap } from 'lucide-react';
+import { X, ExternalLink, Clock, ChevronDown, Zap } from 'lucide-react';
 import { ScoreArc } from './ScoreArc';
 import { GradeBadge } from './GradeBadge';
 import { MetricDot } from './MetricDot';
@@ -43,11 +43,15 @@ function timeAgo(isoString) {
 }
 
 export function SiteDetailDrawer({ entry, onClose }) {
-  // Close on Escape
+  // Close on Escape + lock body scroll
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handler);
+      document.body.style.overflow = '';
+    };
   }, [onClose]);
 
   if (!entry) return null;

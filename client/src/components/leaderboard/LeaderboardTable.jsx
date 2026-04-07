@@ -157,7 +157,7 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7 + METRIC_COLUMNS.length} className="text-center text-[#3A3A3A] text-sm py-12">
+                  <td colSpan={6 + METRIC_COLUMNS.length} className="text-center text-[#3A3A3A] text-sm py-12">
                     {entries.length === 0 ? 'No sites benchmarked yet.' : 'No results match your filters.'}
                   </td>
                 </tr>

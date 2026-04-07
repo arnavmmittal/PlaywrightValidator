@@ -4,7 +4,7 @@
  * Shows streaming AI reasoning text and live cost ticker.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, Check, X, DollarSign, Brain, Gauge } from 'lucide-react';
 import { StreamingText } from './StreamingText';
 
