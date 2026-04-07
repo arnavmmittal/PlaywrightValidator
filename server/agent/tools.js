@@ -205,6 +205,67 @@ const TOOL_DEFINITIONS = [
       },
       required: ['title', 'severity', 'category', 'description']
     }
+  },
+  {
+    name: 'report_findings',
+    description: 'Submit your complete performance analysis. You MUST call this exactly once with your full analysis. This is the only way to deliver your findings.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        summary: {
+          type: 'string',
+          description: 'One-paragraph performance verdict — is this site fast or slow, and what is the single biggest factor?'
+        },
+        overallScore: {
+          type: 'number',
+          description: 'Your subjective overall score 0-100 based on your analysis (shown alongside the deterministic score)'
+        },
+        grade: {
+          type: 'string',
+          enum: ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F'],
+          description: 'Letter grade for overall performance'
+        },
+        keyFindings: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              area: { type: 'string', description: 'Which metric or area (LCP, FCP, CLS, TTFB, TBT, or a category like "Images", "Third-Party")' },
+              verdict: { type: 'string', enum: ['good', 'needs-improvement', 'poor'], description: 'Rating for this area' },
+              explanation: { type: 'string', description: 'WHY this metric has the value it does — be specific, reference the data' },
+              impact: { type: 'string', enum: ['high', 'medium', 'low'], description: 'How much this finding affects overall performance' }
+            },
+            required: ['area', 'verdict', 'explanation', 'impact']
+          },
+          description: 'Key findings for each metric/area — explain WHY, not just WHAT'
+        },
+        architectureAnalysis: {
+          type: 'object',
+          properties: {
+            renderingStrategy: { type: 'string', description: 'SSR/CSR/SSG/ISR analysis — what strategy is used and how it impacts performance' },
+            bundleEfficiency: { type: 'string', description: 'Analysis of JS/CSS bundle sizes and loading strategy' },
+            cdnAndCaching: { type: 'string', description: 'CDN usage, cache headers, edge delivery analysis' },
+            imageOptimization: { type: 'string', description: 'Image formats, lazy loading, sizing analysis' },
+            thirdPartyImpact: { type: 'string', description: 'Third-party scripts and their performance cost' }
+          },
+          required: ['renderingStrategy', 'bundleEfficiency', 'cdnAndCaching', 'imageOptimization', 'thirdPartyImpact']
+        },
+        topRecommendations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              action: { type: 'string', description: 'Specific, actionable recommendation' },
+              impact: { type: 'string', description: 'Expected performance improvement' },
+              effort: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Implementation effort' }
+            },
+            required: ['action', 'impact', 'effort']
+          },
+          description: '3-5 specific, actionable recommendations ordered by impact'
+        }
+      },
+      required: ['summary', 'overallScore', 'grade', 'keyFindings', 'architectureAnalysis', 'topRecommendations']
+    }
   }
 ];
 
@@ -589,6 +650,11 @@ async function executeTool(toolName, toolInput, pageState) {
       case 'report_bug': {
         // This is handled by the orchestrator, not executed against the page
         return { result: `Bug reported: [${toolInput.severity.toUpperCase()}] ${toolInput.title}` };
+      }
+
+      case 'report_findings': {
+        // This is handled by the analyzer, not executed against the page
+        return { result: `Performance analysis submitted: ${toolInput.grade} (${toolInput.overallScore}/100) — ${toolInput.summary.substring(0, 100)}...` };
       }
 
       default:
