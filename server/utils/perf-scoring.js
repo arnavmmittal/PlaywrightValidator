@@ -40,6 +40,15 @@ const WEIGHTS = {
  * Score a single metric value on a 0-100 scale.
  * Lower values are better for all metrics.
  *
+ * Three zones:
+ *   0 to "good" threshold  → 70-100 (differentiates fast from very fast)
+ *   "good" to "poor"       → 30-70  (needs improvement range)
+ *   above "poor"           → 0-30   (poor, degrades to 0)
+ *
+ * This prevents the "everything is 100" problem where all good sites
+ * cluster at the top with identical scores. A site with 200ms LCP should
+ * visibly outscore one with 2400ms LCP, even though both are "good."
+ *
  * @param {string} metricName - lcp, fcp, cls, ttfb, inp, tbt
  * @param {number|null} value - The measured value
  * @returns {number|null} Score 0-100, or null if value is null
@@ -50,28 +59,25 @@ function scoreMetric(metricName, value) {
   const t = THRESHOLDS[metricName];
   if (!t) return null;
 
+  if (value <= 0) return 100;
+
   if (value <= t.good) {
-    // Linear from 100 (at 0) to 100 (at good threshold)
-    // Actually: 100 at good, scale up for values better than good
-    return 100;
-  }
-  if (value >= t.poor) {
-    return 0;
+    // Zone 1: Below "good" threshold → score 70-100
+    // Linear: 0 → 100, good threshold → 70
+    return Math.round(70 + 30 * (1 - value / t.good));
   }
 
-  // Linear interpolation between good (100) and poor (0)
-  // At good threshold → 50 is wrong per spec, let me re-read...
-  // Per plan: 100 = at or below good, 50 = at needs-improvement boundary, 0 = at or above poor
-  // The "needs-improvement boundary" IS the good threshold (transition from good to needs-improvement)
-  // So: value <= good → 100, value = good → 50... that doesn't make sense.
-  //
-  // Reinterpret: smooth scale.
-  //   value <= good  → 100
-  //   value >= poor  → 0
-  //   between        → linear interpolation (100 → 0)
-  const range = t.poor - t.good;
-  const normalized = (value - t.good) / range; // 0 at good, 1 at poor
-  return Math.round(100 * (1 - normalized));
+  if (value <= t.poor) {
+    // Zone 2: Between "good" and "poor" → score 30-70
+    const range = t.poor - t.good;
+    const normalized = (value - t.good) / range;
+    return Math.round(70 - 40 * normalized);
+  }
+
+  // Zone 3: Above "poor" threshold → score 0-30
+  // Degrades from 30 towards 0 as value increases past poor
+  const overshoot = (value - t.poor) / t.poor;
+  return Math.max(0, Math.round(30 - 30 * Math.min(overshoot, 1)));
 }
 
 /**

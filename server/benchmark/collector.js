@@ -213,9 +213,9 @@ async function _collectResources(page, networkRequests) {
       const size = r.transferSize || 0;
       const type = r.initiatorType;
       if (type === 'script') { jsSize += size; jsCount++; }
-      else if (type === 'css' || type === 'link' && r.name.match(/\.css/)) { cssSize += size; cssCount++; }
+      else if (type === 'css' || (type === 'link' && r.name.match(/\.css/))) { cssSize += size; cssCount++; }
       else if (type === 'img' || type === 'image') { imageSize += size; imageCount++; }
-      else if (type === 'font' || r.name.match(/\.(woff2?|ttf|otf|eot)/)) { fontSize += size; fontCount++; }
+      else if (type === 'font' || (r.name && r.name.match(/\.(woff2?|ttf|otf|eot)/))) { fontSize += size; fontCount++; }
       else { otherSize += size; }
     }
 
@@ -323,12 +323,17 @@ async function _detectRendering(page) {
 
     // Check if page has meaningful HTML without JS (SSR indicator)
     const bodyText = document.body?.innerText?.trim() || '';
-    if (bodyText.length > 200 && !indicators.framework) {
-      indicators.strategy = 'SSR';
-      indicators.indicators.push('Substantial HTML content without JS framework detected');
-    } else if (bodyText.length < 50 && !indicators.framework) {
-      indicators.strategy = 'CSR';
-      indicators.indicators.push('Minimal HTML content — likely client-rendered');
+    if (indicators.strategy === 'unknown') {
+      if (bodyText.length > 200) {
+        indicators.strategy = 'SSR';
+        indicators.indicators.push('Substantial server-rendered HTML content detected');
+      } else if (bodyText.length < 50) {
+        indicators.strategy = 'CSR';
+        indicators.indicators.push('Minimal initial HTML — likely client-rendered');
+      } else {
+        indicators.strategy = 'Static/Custom';
+        indicators.indicators.push('No recognized framework — custom or static build');
+      }
     }
 
     return indicators;
