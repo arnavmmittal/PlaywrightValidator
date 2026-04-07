@@ -101,9 +101,10 @@ async function analyzePerformance(collectionResult, options = {}) {
         messages,
       };
 
-      // Force tool use on first turn
+      // Force report_findings on first turn — data is already provided,
+      // the AI should analyze and report immediately
       if (turnCount === 1) {
-        requestParams.tool_choice = { type: 'any' };
+        requestParams.tool_choice = { type: 'tool', name: 'report_findings' };
       }
 
       response = await client.messages.create(requestParams);
