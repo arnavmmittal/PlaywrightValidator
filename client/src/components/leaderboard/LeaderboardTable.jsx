@@ -192,7 +192,7 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
                       {i + 1}
                     </td>
 
-                    {/* Domain + AI insight */}
+                    {/* Domain + summary */}
                     <td className="px-3 py-3">
                       <FaviconCell domain={entry.domain} url={entry.url} />
                       {entry.isChallengePage ? (

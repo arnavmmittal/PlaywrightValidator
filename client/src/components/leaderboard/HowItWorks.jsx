@@ -20,15 +20,15 @@ const STEPS = [
     number: '02',
     title: 'Weighted Scoring',
     description: 'Each metric is scored 0-100 against synthetic 4G thresholds. Weights: LCP 30%, TTFB 20%, TBT 15%, FCP 15%, Security 15%, CLS 5%. INP is excluded (requires real interaction).',
-    detail: 'No AI involved in scoring — pure math, fully reproducible. Scores reflect synthetic conditions, not real-user (RUM) data. Security headers (HTTPS, HSTS, CSP, etc.) are 15% of the score.',
+    detail: 'Pure math, fully reproducible — no LLM involved in scoring. Scores reflect synthetic conditions, not real-user (RUM) data. Security headers (HTTPS, HSTS, CSP, etc.) are 15% of the score.',
     color: '#4ECDC4',
   },
   {
     icon: Brain,
     number: '03',
-    title: 'Constrained AI Analysis',
-    description: 'Claude analyzes the pre-collected data using tool_choice: "required" — it must call a structured report_findings tool. No free-form hallucination possible.',
-    detail: 'The AI explains why scores are what they are and identifies architectural patterns, not generating scores.',
+    title: 'Structured Analysis',
+    description: 'Pre-collected data is analyzed via constrained tool use — a structured report_findings schema is required. No free-form output possible.',
+    detail: 'Explains why scores are what they are and identifies architectural patterns — never generates or overrides deterministic scores.',
     color: '#A78BFA',
   },
 ];
@@ -36,7 +36,7 @@ const STEPS = [
 const PRINCIPLES = [
   { icon: Repeat, text: 'Reproducible — same site, same score every time' },
   { icon: FlaskConical, text: 'Transparent — synthetic testing with known limitations' },
-  { icon: Lock, text: 'Constrained — AI explains, never fabricates metrics' },
+  { icon: Lock, text: 'Constrained — analysis explains, never fabricates metrics' },
 ];
 
 const LIMITATIONS = [
@@ -46,7 +46,7 @@ const LIMITATIONS = [
   'Tests run from a single geographic location (Railway US) — CDN edge performance may differ for global users.',
   'No CPU throttling applied — mobile devices with slower processors will see worse TBT.',
   'Sites that block headless browsers (Cloudflare, CAPTCHAs) are flagged but cannot be benchmarked.',
-  'AI analysis is advisory and may contain errors — deterministic metrics are the source of truth.',
+  'Analysis commentary is advisory and may contain errors — deterministic metrics are the source of truth.',
 ];
 
 export function HowItWorks() {
@@ -60,7 +60,7 @@ export function HowItWorks() {
         </div>
         <p className="text-sm text-[#666666] mb-10 max-w-2xl">
           Unlike Lighthouse, PerfRank separates data collection from analysis.
-          Deterministic metrics first, then constrained AI reasoning — never the other way around.
+          Deterministic metrics first, then constrained reasoning — never the other way around.
         </p>
 
         {/* Steps */}

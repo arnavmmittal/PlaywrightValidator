@@ -123,7 +123,7 @@ export function BenchmarkProgress({ domain, messages = [], onCancel }) {
       <div className="flex justify-between text-[10px] text-[#3A3A3A] mb-6 -mt-4 px-1">
         <span>Collect</span>
         <span>Score</span>
-        <span>AI Analysis</span>
+        <span>Analyze</span>
       </div>
 
       {/* Phase 1: Collector Progress */}
@@ -175,13 +175,12 @@ export function BenchmarkProgress({ domain, messages = [], onCancel }) {
         </div>
       )}
 
-      {/* Phase 3: AI Analysis */}
+      {/* Phase 3: Analysis */}
       {phase === 3 && (
         <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
             <Brain className="w-4 h-4 text-[#A78BFA]" />
-            <span className="text-sm text-white font-medium">AI is analyzing...</span>
-            <span className="text-[10px] text-[#3A3A3A] font-mono ml-auto">Haiku 4.5</span>
+            <span className="text-sm text-white font-medium">Analyzing performance data...</span>
           </div>
           <StreamingText lines={aiLines} isStreaming={true} maxHeight="160px" />
         </div>

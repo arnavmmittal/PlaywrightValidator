@@ -57,7 +57,7 @@ export function HeroSection({ onBenchmark, recentSites = [], isLoading = false, 
         {/* Badge */}
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#2A2A2A] bg-[#141414]/80 px-4 py-1.5 backdrop-blur-sm">
           <Zap className="w-3.5 h-3.5 text-[#E8FF47]" />
-          <span className="text-xs text-[#A0A0A0]">AI-Powered Performance Analysis</span>
+          <span className="text-xs text-[#A0A0A0]">Deterministic Web Performance Analysis</span>
         </div>
 
         {/* Heading */}
@@ -69,7 +69,7 @@ export function HeroSection({ onBenchmark, recentSites = [], isLoading = false, 
 
         {/* Subtext */}
         <p className="text-center text-base md:text-lg text-[#666666] mb-12 max-w-2xl leading-relaxed">
-          Deterministic Playwright benchmarks. Constrained AI analysis.
+          Deterministic Playwright benchmarks. Structured performance analysis.
           <br className="hidden sm:block" />
           Public leaderboard. No login required.
         </p>

@@ -307,12 +307,12 @@ function App() {
         <div className="px-6 lg:px-12 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#3A3A3A]">
           <div className="flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-[#E8FF47]" />
-            <span>PerfRank — Deterministic benchmarks + AI analysis</span>
+            <span>PerfRank — Deterministic web performance benchmarks</span>
           </div>
           <div className="flex items-center gap-4">
             <span>Playwright collector</span>
             <span className="text-[#1A1A1A]">|</span>
-            <span>Claude AI analyst</span>
+            <span>Structured analysis</span>
             <span className="text-[#1A1A1A]">|</span>
             <span>Open source</span>
           </div>

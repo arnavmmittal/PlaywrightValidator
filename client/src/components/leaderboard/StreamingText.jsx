@@ -21,7 +21,7 @@ export function StreamingText({ lines = [], isStreaming = false, maxHeight = '20
       style={{ maxHeight }}
     >
       {lines.length === 0 && isStreaming && (
-        <span className="text-[#3A3A3A]">Waiting for AI reasoning...</span>
+        <span className="text-[#3A3A3A]">Analyzing performance data...</span>
       )}
       {lines.map((line, i) => (
         <div key={i} className="text-[#A0A0A0]">
