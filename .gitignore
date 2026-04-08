@@ -4,5 +4,7 @@ client/dist/
 client/node_modules/
 .env
 screenshots/
+reports/*.json
+!reports/leaderboard.json
 *.log
 .DS_Store

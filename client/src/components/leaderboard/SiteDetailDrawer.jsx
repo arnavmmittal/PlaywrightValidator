@@ -216,11 +216,18 @@ export function SiteDetailDrawer({ entry, onClose }) {
           )}
 
           {/* AI Analysis Summary */}
-          {entry.aiAnalysis && (
+          {entry.aiAnalysis ? (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-white mb-3">AI Analysis</h3>
               <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-4 text-sm text-[#A0A0A0] leading-relaxed">
                 {entry.aiAnalysis}
+              </div>
+            </div>
+          ) : !findings && entry.status !== 'error' && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-white mb-3">AI Analysis</h3>
+              <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-4 text-xs text-[#3A3A3A] italic">
+                AI analysis unavailable — daily analysis budget reached. Deterministic scores above are still accurate.
               </div>
             </div>
           )}

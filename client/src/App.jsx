@@ -24,6 +24,7 @@ const TOAST_COLORS = {
 function App() {
   // Leaderboard state
   const [entries, setEntries] = useState([]);
+  const [leaderboardError, setLeaderboardError] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
 
   // Benchmark state
@@ -115,11 +116,12 @@ function App() {
   async function fetchLeaderboard() {
     try {
       const res = await fetch(`${API_BASE}/api/leaderboard`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setEntries(data.entries || []);
+      setLeaderboardError(false);
     } catch {
-      // Silent fail on initial load
+      setLeaderboardError(true);
     }
   }
 
@@ -249,10 +251,22 @@ function App() {
             <div className="flex-1 h-px bg-[#1A1A1A]" />
             <span className="text-xs text-[#3A3A3A] font-mono">{entries.length} sites</span>
           </div>
-          <LeaderboardTable
-            entries={entries}
-            onSelectEntry={setSelectedEntry}
-          />
+          {leaderboardError && entries.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-sm text-[#3A3A3A] mb-3">Failed to load leaderboard</p>
+              <button
+                onClick={() => fetchLeaderboard()}
+                className="text-xs text-[#E8FF47] hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <LeaderboardTable
+              entries={entries}
+              onSelectEntry={setSelectedEntry}
+            />
+          )}
         </section>
 
         {/* How It Works */}
