@@ -63,7 +63,7 @@
         "lcp": {
           "value": 764,
           "score": 91,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "good"
         },
         "fcp": {
@@ -75,25 +75,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 431,
           "score": 84,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 9,
           "score": 99,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -399,7 +399,7 @@
         "lcp": {
           "value": 564,
           "score": 93,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "good"
         },
         "fcp": {
@@ -411,25 +411,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 297,
           "score": 89,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -704,7 +704,7 @@
         "lcp": {
           "value": 2792,
           "score": 62,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "needs-improvement"
         },
         "fcp": {
@@ -716,25 +716,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 124,
           "score": 95,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -1035,13 +1035,13 @@
           "rating": "unknown"
         }
       },
-      "overallScore": 81,
+      "overallScore": 82,
       "grade": "B",
       "metricScores": {
         "lcp": {
           "value": 1228,
           "score": 85,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "good"
         },
         "fcp": {
@@ -1053,25 +1053,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 284,
           "score": 89,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -1354,13 +1354,13 @@
           "rating": "unknown"
         }
       },
-      "overallScore": 68,
+      "overallScore": 69,
       "grade": "D",
       "metricScores": {
         "lcp": {
           "value": null,
           "score": null,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "unknown"
         },
         "fcp": {
@@ -1372,25 +1372,25 @@
         "cls": {
           "value": 0.002,
           "score": 99,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 385,
           "score": 86,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -1714,13 +1714,13 @@
           "rating": "unknown"
         }
       },
-      "overallScore": 65,
+      "overallScore": 64,
       "grade": "D",
       "metricScores": {
         "lcp": {
           "value": 3944,
           "score": 31,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "needs-improvement"
         },
         "fcp": {
@@ -1732,25 +1732,25 @@
         "cls": {
           "value": 0.011,
           "score": 97,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 196,
           "score": 93,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -2063,7 +2063,7 @@
         "lcp": {
           "value": 2764,
           "score": 63,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "needs-improvement"
         },
         "fcp": {
@@ -2075,25 +2075,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 329,
           "score": 88,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 6,
           "score": 99,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -2369,13 +2369,13 @@
           "rating": "unknown"
         }
       },
-      "overallScore": 87,
+      "overallScore": 86,
       "grade": "B+",
       "metricScores": {
         "lcp": {
           "value": 1564,
           "score": 81,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "good"
         },
         "fcp": {
@@ -2387,25 +2387,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 268,
           "score": 90,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 17,
           "score": 97,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -2680,7 +2680,7 @@
         "lcp": {
           "value": 3984,
           "score": 30,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "needs-improvement"
         },
         "fcp": {
@@ -2692,25 +2692,25 @@
         "cls": {
           "value": 0.009,
           "score": 97,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 474,
           "score": 82,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -3028,7 +3028,7 @@
         "lcp": {
           "value": 2752,
           "score": 63,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "needs-improvement"
         },
         "fcp": {
@@ -3040,25 +3040,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 489,
           "score": 82,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -3444,13 +3444,13 @@
           "rating": "unknown"
         }
       },
-      "overallScore": 73,
+      "overallScore": 74,
       "grade": "C",
       "metricScores": {
         "lcp": {
           "value": null,
           "score": null,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "unknown"
         },
         "fcp": {
@@ -3462,25 +3462,25 @@
         "cls": {
           "value": 0.001,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 121,
           "score": 95,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -3798,7 +3798,7 @@
         "lcp": {
           "value": null,
           "score": null,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "unknown"
         },
         "fcp": {
@@ -3810,25 +3810,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 165,
           "score": 94,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -4152,7 +4152,7 @@
         "lcp": {
           "value": 4712,
           "score": 25,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "poor"
         },
         "fcp": {
@@ -4164,25 +4164,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 119,
           "score": 96,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -4460,13 +4460,13 @@
           "rating": "unknown"
         }
       },
-      "overallScore": 79,
-      "grade": "C+",
+      "overallScore": 80,
+      "grade": "B",
       "metricScores": {
         "lcp": {
           "value": null,
           "score": null,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "unknown"
         },
         "fcp": {
@@ -4478,25 +4478,25 @@
         "cls": {
           "value": 0.001,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 124,
           "score": 95,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "good"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
@@ -4812,13 +4812,13 @@
           "rating": "unknown"
         }
       },
-      "overallScore": 82,
+      "overallScore": 80,
       "grade": "B",
       "metricScores": {
         "lcp": {
           "value": null,
           "score": null,
-          "weight": 0.25,
+          "weight": 0.3,
           "rating": "unknown"
         },
         "fcp": {
@@ -4830,25 +4830,25 @@
         "cls": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.05,
           "rating": "good"
         },
         "ttfb": {
           "value": 951,
           "score": 64,
-          "weight": 0.15,
+          "weight": 0.2,
           "rating": "needs-improvement"
         },
         "inp": {
           "value": null,
           "score": null,
-          "weight": 0.1,
+          "weight": 0,
           "rating": "unknown"
         },
         "tbt": {
           "value": 0,
           "score": 100,
-          "weight": 0.1,
+          "weight": 0.15,
           "rating": "good"
         },
         "security": {
