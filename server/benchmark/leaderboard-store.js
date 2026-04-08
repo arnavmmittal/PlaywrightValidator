@@ -111,6 +111,17 @@ function wasBenchmarkedRecently(url, withinMs = 24 * 60 * 60 * 1000) {
 }
 
 /**
+ * Delete entries by domain.
+ */
+function deleteByDomain(domain) {
+  const data = _readRaw();
+  const before = data.entries.length;
+  data.entries = data.entries.filter(e => e.domain !== domain);
+  _writeRaw(data);
+  return before - data.entries.length;
+}
+
+/**
  * Get the total number of entries.
  */
 function getCount() {
@@ -122,6 +133,7 @@ module.exports = {
   getEntries,
   getEntryById,
   getEntryByDomain,
+  deleteByDomain,
   getEntryByUrl,
   upsertEntry,
   wasBenchmarkedRecently,
