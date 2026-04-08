@@ -63,7 +63,7 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
     return res.status(400).json({ error: 'URL is required' });
   }
 
-  // Normalize URL to homepage
+  // Parse and validate URL (supports full paths + query strings)
   let normalizedUrl;
   let domain;
   try {
@@ -85,17 +85,18 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
       return res.status(400).json({ error: 'Invalid domain name' });
     }
     domain = hostname.replace(/^www\./, '');
-    normalizedUrl = `https://${domain}/`;
+    // Preserve full path + query, just normalize protocol and strip www
+    normalizedUrl = `https://${domain}${parsed.pathname}${parsed.search}`;
   } catch {
     return res.status(400).json({ error: 'Invalid URL' });
   }
 
-  // Check if already benchmarked recently
-  if (store.wasBenchmarkedRecently(domain)) {
-    const existing = store.getEntryByDomain(domain);
+  // Check if this exact URL was benchmarked recently
+  if (store.wasBenchmarkedRecently(normalizedUrl)) {
+    const existing = store.getEntryByUrl(normalizedUrl);
     return res.json({
       status: 'already_benchmarked',
-      message: 'This site was benchmarked within the last 24 hours.',
+      message: 'This URL was benchmarked within the last 24 hours.',
       entry: existing,
     });
   }

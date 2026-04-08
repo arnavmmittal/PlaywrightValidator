@@ -63,7 +63,15 @@ function getEntryByDomain(domain) {
 }
 
 /**
- * Upsert an entry (insert or update by domain).
+ * Get a single entry by URL.
+ */
+function getEntryByUrl(url) {
+  const data = _readRaw();
+  return data.entries.find(e => e.url === url) || null;
+}
+
+/**
+ * Upsert an entry (insert or update by URL).
  * Uses write lock to prevent concurrent write corruption.
  *
  * @param {object} entry - The leaderboard entry
@@ -72,7 +80,7 @@ function getEntryByDomain(domain) {
 function upsertEntry(entry) {
   writeLock = writeLock.then(() => {
     const data = _readRaw();
-    const existingIdx = data.entries.findIndex(e => e.domain === entry.domain);
+    const existingIdx = data.entries.findIndex(e => e.url === entry.url);
 
     if (existingIdx >= 0) {
       // Update existing
@@ -93,10 +101,10 @@ function upsertEntry(entry) {
 }
 
 /**
- * Check if a domain was benchmarked within the last N milliseconds.
+ * Check if a URL was benchmarked within the last N milliseconds.
  */
-function wasBenchmarkedRecently(domain, withinMs = 24 * 60 * 60 * 1000) {
-  const entry = getEntryByDomain(domain);
+function wasBenchmarkedRecently(url, withinMs = 24 * 60 * 60 * 1000) {
+  const entry = getEntryByUrl(url);
   if (!entry) return false;
   const benchmarkedAt = new Date(entry.benchmarkedAt).getTime();
   return Date.now() - benchmarkedAt < withinMs;
@@ -114,6 +122,7 @@ module.exports = {
   getEntries,
   getEntryById,
   getEntryByDomain,
+  getEntryByUrl,
   upsertEntry,
   wasBenchmarkedRecently,
   getCount,

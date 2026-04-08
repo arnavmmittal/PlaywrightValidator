@@ -194,7 +194,7 @@ export function LeaderboardTable({ entries = [], onSelectEntry }) {
 
                     {/* Domain + AI insight */}
                     <td className="px-3 py-3">
-                      <FaviconCell domain={entry.domain} />
+                      <FaviconCell domain={entry.domain} url={entry.url} />
                       {entry.status === 'error' ? (
                         <p className="text-[10px] text-red-400 mt-0.5">
                           HTTP {entry.httpStatus} — Error page
