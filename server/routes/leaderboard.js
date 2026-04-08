@@ -188,7 +188,7 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
 
   if (!result) {
     // Don't consume rate limit token — queue was full, user didn't get a benchmark
-    return res.status(503).json({
+    return res.status(429).json({
       error: 'Queue is full',
       message: 'Too many benchmarks in progress. Please try again in a few minutes.',
       queue: benchmarkQueue.getStatus(),

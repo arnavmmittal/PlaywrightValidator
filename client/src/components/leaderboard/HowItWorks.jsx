@@ -19,8 +19,8 @@ const STEPS = [
     icon: Calculator,
     number: '02',
     title: 'Weighted Scoring',
-    description: 'Each metric is scored 0-100 against real-world thresholds (Web Vitals standards). Weights: LCP 25%, FCP 15%, TTFB 15%, Security 15%, CLS 10%, INP 10%, TBT 10%.',
-    detail: 'No AI involved in scoring — pure math, fully reproducible. Security headers (HTTPS, HSTS, CSP, etc.) are 15% of the score.',
+    description: 'Each metric is scored 0-100 against synthetic 4G thresholds. Weights: LCP 30%, TTFB 20%, TBT 15%, FCP 15%, Security 15%, CLS 5%. INP is excluded (requires real interaction).',
+    detail: 'No AI involved in scoring — pure math, fully reproducible. Scores reflect synthetic conditions, not real-user (RUM) data. Security headers (HTTPS, HSTS, CSP, etc.) are 15% of the score.',
     color: '#4ECDC4',
   },
   {
@@ -40,11 +40,13 @@ const PRINCIPLES = [
 ];
 
 const LIMITATIONS = [
-  'CLS is near-zero in headless browsers — real users experience more layout shifts from fonts, ads, and lazy images.',
-  'INP (Interaction to Next Paint) requires real user interaction — not measurable synthetically.',
-  'Tests run from a single geographic location — CDN edge performance may differ for global users.',
-  'No CPU throttling applied — mobile devices with slower processors will see worse TBT/INP.',
-  'Sites that block headless browsers (Cloudflare, CAPTCHAs) get flagged but may not reflect real performance.',
+  'Scores are synthetic 4G benchmarks, not real-user (RUM) data. A site\'s actual performance depends on user device, network, and location.',
+  'CLS is near-zero in headless browsers — real users experience more layout shifts from fonts, ads, and lazy images. Weighted at only 5%.',
+  'INP (Interaction to Next Paint) requires real user interaction — excluded from scoring entirely. Consult CrUX for real INP data.',
+  'Tests run from a single geographic location (Railway US) — CDN edge performance may differ for global users.',
+  'No CPU throttling applied — mobile devices with slower processors will see worse TBT.',
+  'Sites that block headless browsers (Cloudflare, CAPTCHAs) are flagged but cannot be benchmarked.',
+  'AI analysis is advisory and may contain errors — deterministic metrics are the source of truth.',
 ];
 
 export function HowItWorks() {

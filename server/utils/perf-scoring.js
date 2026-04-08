@@ -28,13 +28,16 @@ const THRESHOLDS = {
   tbt:  { good: 200,  poor: 600 },
 };
 
+// INP requires real user interaction — always null in synthetic tests, so weight = 0.
+// CLS is near-zero in headless browsers (no scroll, no ads, no fonts), so reduced weight.
+// Redistributed weight to LCP, TTFB, and TBT which are reliable in synthetic tests.
 const WEIGHTS = {
-  lcp:      0.25,
+  lcp:      0.30,
   fcp:      0.15,
-  cls:      0.10,
-  ttfb:     0.15,
-  inp:      0.10,
-  tbt:      0.10,
+  cls:      0.05,
+  ttfb:     0.20,
+  inp:      0.00,
+  tbt:      0.15,
   security: 0.15,
 };
 
