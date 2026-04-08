@@ -2,7 +2,7 @@
 
 **Public web performance leaderboard.** Deterministic Playwright benchmarks + constrained AI analysis.
 
-[Live Demo](https://web-production-458a9.up.railway.app) | [How It Works](#how-it-works) | [Architecture](#architecture)
+[Live Demo](https://perfrank.up.railway.app) | [How It Works](#how-it-works) | [Architecture](#architecture)
 
 ---
 
