@@ -17,6 +17,27 @@ const MAX_TURNS = 5;
 const MAX_FOLLOW_UP_CALLS = 3;
 const MAX_TOKENS = 4096;
 
+// Global daily AI spend tracker
+const DAILY_BUDGET_USD = parseFloat(process.env.AI_DAILY_BUDGET || '5.00');
+let _dailySpend = 0;
+let _dailyResetAt = Date.now() + 24 * 60 * 60 * 1000;
+
+function _trackSpend(cost) {
+  if (Date.now() > _dailyResetAt) {
+    _dailySpend = 0;
+    _dailyResetAt = Date.now() + 24 * 60 * 60 * 1000;
+  }
+  _dailySpend += cost;
+}
+
+function _budgetExceeded() {
+  if (Date.now() > _dailyResetAt) {
+    _dailySpend = 0;
+    _dailyResetAt = Date.now() + 24 * 60 * 60 * 1000;
+  }
+  return _dailySpend >= DAILY_BUDGET_USD;
+}
+
 // Only these tools are available during the analysis phase
 const ALLOWED_TOOLS = ['report_findings', 'screenshot', 'evaluate_js'];
 
@@ -47,6 +68,12 @@ async function analyzePerformance(collectionResult, options = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY environment variable is not set.');
+  }
+  if (_budgetExceeded()) {
+    return {
+      findings: null,
+      aiStats: { turns: 0, toolCalls: 0, model: 'budget_exceeded', cost: 0 },
+    };
   }
 
   const client = new Anthropic();
@@ -218,6 +245,8 @@ async function analyzePerformance(collectionResult, options = {}) {
     // If we got findings, we can stop
     if (findings) break;
   }
+
+  _trackSpend(totalCost);
 
   const aiStats = {
     turns: turnCount,

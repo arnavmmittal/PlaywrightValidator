@@ -68,7 +68,23 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
   let domain;
   try {
     const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
-    domain = parsed.hostname.replace(/^www\./, '');
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return res.status(400).json({ error: 'Only HTTP(S) URLs allowed' });
+    }
+    const hostname = parsed.hostname;
+    // Block private/internal IPs and ranges (SSRF protection)
+    const blocked = [
+      /^localhost$/i, /^127\./, /^10\./, /^0\./, /^::1$/,
+      /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^169\.254\./,
+      /^fc00:/i, /^fe80:/i, /^fd/i,
+    ];
+    if (blocked.some((r) => r.test(hostname))) {
+      return res.status(400).json({ error: 'Private/internal URLs are not allowed' });
+    }
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/i.test(hostname)) {
+      return res.status(400).json({ error: 'Invalid domain name' });
+    }
+    domain = hostname.replace(/^www\./, '');
     normalizedUrl = `https://${domain}/`;
   } catch {
     return res.status(400).json({ error: 'Invalid URL' });

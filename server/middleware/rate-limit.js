@@ -15,6 +15,8 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const LIMITS = {
   benchmark: 2,
   compare: 5,
+  test: 3,
+  'ai-test': 2,
 };
 
 // Map<string, { benchmark: number[], compare: number[] }>
@@ -25,11 +27,12 @@ const store = new Map();
 setInterval(() => {
   const now = Date.now();
   for (const [ip, data] of store.entries()) {
-    data.benchmark = data.benchmark.filter(t => now - t < WINDOW_MS);
-    data.compare = data.compare.filter(t => now - t < WINDOW_MS);
-    if (data.benchmark.length === 0 && data.compare.length === 0) {
-      store.delete(ip);
+    let empty = true;
+    for (const type of Object.keys(data)) {
+      data[type] = data[type].filter(t => now - t < WINDOW_MS);
+      if (data[type].length > 0) empty = false;
     }
+    if (empty) store.delete(ip);
   }
 }, CLEANUP_INTERVAL_MS);
 
@@ -42,9 +45,13 @@ function _getIP(req) {
 
 function _getRecord(ip) {
   if (!store.has(ip)) {
-    store.set(ip, { benchmark: [], compare: [] });
+    store.set(ip, {});
   }
-  return store.get(ip);
+  const record = store.get(ip);
+  for (const type of Object.keys(LIMITS)) {
+    if (!record[type]) record[type] = [];
+  }
+  return record;
 }
 
 function _cleanExpired(timestamps) {

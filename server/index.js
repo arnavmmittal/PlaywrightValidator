@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const { TestOrchestrator, loadReport, getReportHistory, compareReports } = require('./orchestrator');
 const { AITestOrchestrator } = require('./agent/ai-orchestrator');
 const leaderboardRouter = require('./routes/leaderboard');
+const { rateLimitMiddleware } = require('./middleware/rate-limit');
 
 const app = express();
 const server = http.createServer(app);
@@ -37,8 +38,12 @@ if (cleanupInterval.unref) {
   cleanupInterval.unref();
 }
 
-app.use(cors());
-app.use(express.json());
+app.use(cors(
+  process.env.NODE_ENV === 'production'
+    ? { origin: process.env.ALLOWED_ORIGINS?.split(',') || true }
+    : {}
+));
+app.use(express.json({ limit: '1mb' }));
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
@@ -57,7 +62,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Start test run
-app.post('/api/test/run', async (req, res) => {
+app.post('/api/test/run', rateLimitMiddleware('test'), async (req, res) => {
   const { url, tests, options } = req.body;
 
   if (!url || !tests || tests.length === 0) {
@@ -134,7 +139,7 @@ app.get('/api/ai/status', (req, res) => {
 });
 
 // Start AI-powered test run
-app.post('/api/test/ai-run', async (req, res) => {
+app.post('/api/test/ai-run', rateLimitMiddleware('ai-test'), async (req, res) => {
   const { url, agentMode, aiModel, options } = req.body;
 
   if (!url) {
