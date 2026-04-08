@@ -157,10 +157,13 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
       metricScores,
       httpStatus: collectionResult.httpStatus,
       status: isErrorPage ? 'error' : 'ok',
+      isChallengePage: collectionResult.isChallengePage || false,
       throttleProfile: collectionResult.throttleProfile,
       security: collectionResult.security,
       aiAnalysis: isErrorPage
-        ? `Site returned HTTP ${collectionResult.httpStatus}. Performance data is not meaningful for error pages.`
+        ? (collectionResult.isChallengePage
+            ? 'Site served a CAPTCHA/challenge page. Metrics reflect the challenge, not the actual site.'
+            : `Site returned HTTP ${collectionResult.httpStatus}. Performance data is not meaningful for error pages.`)
         : (findings?.summary || null),
       aiFindings: findings,
       aiScore: findings?.overallScore || null,

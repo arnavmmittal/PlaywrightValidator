@@ -65,7 +65,8 @@ async function collectPerformanceData(url, broadcast = () => {}) {
       vitals,
       throttleProfile: THROTTLE_PROFILE.name,
       httpStatus: firstRun.httpStatus,
-      isErrorPage: firstRun.httpStatus >= 400,
+      isErrorPage: firstRun.httpStatus >= 400 || firstRun.isChallengePage === true,
+      isChallengePage: firstRun.isChallengePage === true,
       mainDocHeaders: firstRun.mainDocHeaders,
       security: firstRun.security,
       resources: firstRun.resources,
@@ -249,6 +250,8 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
       runData.security = computeSecurityScore(mainDocHeaders, page.url());
       broadcast({ type: 'collector_status', phase: 'screenshot', message: 'Taking screenshot...' });
       runData.screenshot = await _takeScreenshot(page, _extractDomain(url), httpStatus);
+      // Detect CAPTCHA/challenge pages (HTTP 200 but not real content)
+      runData.isChallengePage = await _isChallengePage(page, httpStatus);
     } catch (err) {
       // Some page.evaluate calls may fail on redirect-heavy sites
       broadcast({ type: 'collector_status', phase: 'resources', message: `Static analysis partially failed: ${err.message}` });
@@ -518,6 +521,55 @@ function _analyzeCaching(networkRequests) {
 /**
  * Check if the page appears to be a block/error page rather than real content.
  */
+/**
+ * Detect CAPTCHA/challenge pages that return HTTP 200 but serve fake content.
+ * More specific than _isBlockedPage — only flags definitive challenge patterns.
+ */
+async function _isChallengePage(page, httpStatus) {
+  // HTTP errors are handled separately
+  if (httpStatus && httpStatus >= 400) return false;
+
+  try {
+    const text = await page.evaluate(() => document.body?.innerText?.toLowerCase()?.slice(0, 3000) || '');
+    const title = await page.evaluate(() => document.title?.toLowerCase() || '');
+
+    // Definitive challenge/CAPTCHA patterns
+    const challengePatterns = [
+      'solve challenge below',
+      'complete the captcha',
+      'verify you are human',
+      'are you a robot',
+      'please complete the security check',
+      'one more step',
+      'checking if the site connection is secure',
+      'enable cookies and reload',
+      'ray id',                      // Cloudflare challenge
+      'performance & security by cloudflare',
+      'attention required',
+      'please turn javascript on',
+      'please enable cookies',
+      'bot verification',
+    ];
+
+    const titlePatterns = [
+      'just a moment',               // Cloudflare
+      'attention required',           // Cloudflare
+      'security check',
+      'access denied',
+      'please wait',
+    ];
+
+    const textMatches = challengePatterns.filter(p => text.includes(p)).length;
+    const titleMatch = titlePatterns.some(p => title.includes(p));
+
+    if (textMatches >= 1) return true;
+    if (titleMatch && text.length < 1000) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 async function _isBlockedPage(page, httpStatus) {
   // HTTP error status is a definitive signal
   if (httpStatus && httpStatus >= 400) return true;
