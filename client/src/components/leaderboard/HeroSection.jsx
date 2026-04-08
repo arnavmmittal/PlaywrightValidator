@@ -80,26 +80,27 @@ export function HeroSection({ onBenchmark, recentSites = [], isLoading = false, 
             {/* Glow effect */}
             <div className="absolute -inset-0.5 bg-[#E8FF47]/0 group-focus-within:bg-[#E8FF47]/20 rounded-xl blur-lg transition-all duration-500" />
 
-            <div className="relative flex items-center gap-3 bg-[#141414] border border-[#2A2A2A] group-focus-within:border-[#E8FF47]/50 rounded-2xl p-2.5 transition-colors shadow-lg shadow-black/20">
-              <Globe className="w-5 h-5 text-[#3A3A3A] ml-3 flex-shrink-0" />
+            <div className="relative flex items-center gap-2 sm:gap-3 bg-[#141414] border border-[#2A2A2A] group-focus-within:border-[#E8FF47]/50 rounded-2xl p-2 sm:p-2.5 transition-colors shadow-lg shadow-black/20">
+              <Globe className="w-5 h-5 text-[#3A3A3A] ml-2 sm:ml-3 flex-shrink-0 hidden sm:block" />
               <input
                 type="text"
-                placeholder="Enter any URL to benchmark..."
+                placeholder="Enter a URL..."
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={isLoading}
-                className="flex-1 bg-transparent text-white text-base md:text-lg placeholder:text-[#3A3A3A] outline-none h-12 disabled:opacity-50"
+                className="flex-1 min-w-0 bg-transparent text-white text-sm sm:text-base md:text-lg placeholder:text-[#3A3A3A] outline-none h-10 sm:h-12 disabled:opacity-50 ml-2 sm:ml-0"
               />
               <button
                 type="submit"
                 disabled={!url.trim() || isLoading || rateLimitRemaining <= 0}
-                className="flex items-center gap-2 bg-[#E8FF47] hover:bg-[#d4eb33] disabled:bg-[#E8FF47]/30 disabled:text-black/30 text-black font-semibold px-6 h-12 rounded-xl text-sm transition-all duration-200 hover:shadow-[0_0_20px_rgba(232,255,71,0.3)] disabled:hover:shadow-none flex-shrink-0"
+                className="flex items-center gap-1.5 sm:gap-2 bg-[#E8FF47] hover:bg-[#d4eb33] disabled:bg-[#E8FF47]/30 disabled:text-black/30 text-black font-semibold px-3 sm:px-6 h-10 sm:h-12 rounded-xl text-xs sm:text-sm transition-all duration-200 hover:shadow-[0_0_20px_rgba(232,255,71,0.3)] disabled:hover:shadow-none flex-shrink-0 whitespace-nowrap"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    Benchmark
+                    <span className="hidden sm:inline">Benchmark</span>
+                    <span className="sm:hidden">Go</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
