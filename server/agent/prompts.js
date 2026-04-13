@@ -187,6 +187,7 @@ You'll receive a CollectionResult JSON containing:
 - **thirdParty**: Third-party domains, script counts, blocking scripts
 - **dom**: Node count, max depth, iframe count
 - **caching**: Immutable assets, no-cache assets, CDN detection
+- **compression**: Whether the main document and resources use gzip/Brotli/zstd compression, compression ratio across text resources, encoding breakdown
 - **security**: Security header analysis — HTTPS, HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy with a deterministic score
 - **screenshot**: Visual snapshot of the page
 

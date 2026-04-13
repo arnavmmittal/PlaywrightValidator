@@ -215,6 +215,44 @@ export function SiteDetailDrawer({ entry, onClose }) {
             </div>
           )}
 
+          {/* Compression */}
+          {entry.compression && (
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-sm font-semibold text-white">Compression</h3>
+                <div className="flex items-center gap-1.5 bg-[#141414] border border-[#1A1A1A] rounded-md px-2 py-0.5">
+                  <span className={`text-xs font-mono font-bold ${
+                    entry.compression.resources?.ratio >= 80 ? 'text-emerald-400' :
+                    entry.compression.resources?.ratio >= 40 ? 'text-amber-400' :
+                    'text-red-400'
+                  }`}>
+                    {entry.compression.resources?.ratio ?? 0}% compressed
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className={`bg-[#141414] border rounded-lg p-2.5 ${entry.compression.mainDocument?.compressed ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+                  <span className="text-xs text-[#A0A0A0] block">Main Document</span>
+                  <span className={`text-xs font-mono ${entry.compression.mainDocument?.compressed ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {entry.compression.mainDocument?.compressed ? entry.compression.mainDocument.encoding.toUpperCase() : 'Not compressed'}
+                  </span>
+                </div>
+                <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-2.5">
+                  <span className="text-xs text-[#A0A0A0] block">Compressed Resources</span>
+                  <span className="text-xs font-mono text-white">{entry.compression.resources?.compressed ?? 0} / {(entry.compression.resources?.compressed ?? 0) + (entry.compression.resources?.uncompressed ?? 0)}</span>
+                </div>
+                {entry.compression.encodings && Object.keys(entry.compression.encodings).length > 0 && (
+                  <div className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-2.5">
+                    <span className="text-xs text-[#A0A0A0] block">Encodings Used</span>
+                    <span className="text-xs font-mono text-white">
+                      {Object.entries(entry.compression.encodings).map(([enc, count]) => `${enc} (${count})`).join(', ')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Analysis Summary */}
           {entry.aiAnalysis ? (
             <div className="mb-6">

@@ -82,6 +82,7 @@ async function collectPerformanceData(url, broadcast = () => {}) {
       thirdParty: firstRun.thirdParty,
       dom: firstRun.dom,
       caching: firstRun.caching,
+      compression: firstRun.compression,
       screenshot: firstRun.screenshot,
       navTiming: firstRun.navTiming,
       consoleErrors: firstRun.consoleErrors,
@@ -265,6 +266,8 @@ async function _singleRun(browser, url, broadcast, collectStatic) {
       broadcast({ type: 'collector_status', phase: 'dom', message: 'Inspecting DOM & caching...' });
       runData.dom = await _analyzeDom(page);
       runData.caching = _analyzeCaching(networkRequests);
+      // Compression analysis
+      runData.compression = _analyzeCompression(mainDocHeaders, networkRequests);
       // Security headers analysis (deterministic — header presence/absence)
       broadcast({ type: 'collector_status', phase: 'security', message: 'Analyzing security headers...' });
       runData.security = computeSecurityScore(mainDocHeaders, page.url());
@@ -504,6 +507,41 @@ async function _analyzeDom(page) {
       stylesheets: document.querySelectorAll('link[rel="stylesheet"]').length,
     };
   });
+}
+
+function _analyzeCompression(mainDocHeaders, networkRequests) {
+  // Check main document compression
+  const encoding = (mainDocHeaders['content-encoding'] || '').toLowerCase();
+  const mainDocCompressed = ['gzip', 'br', 'zstd', 'deflate'].some(e => encoding.includes(e));
+  const mainDocEncoding = mainDocCompressed ? encoding : 'none';
+
+  // Analyze compression across all text-based resources
+  let compressedCount = 0;
+  let uncompressedCount = 0;
+  const encodings = {};
+
+  for (const req of networkRequests) {
+    const type = req.resourceType;
+    // Only check compressible resource types
+    if (!['document', 'script', 'stylesheet', 'xhr', 'fetch'].includes(type)) continue;
+
+    const enc = (req.headers['content-encoding'] || '').toLowerCase();
+    if (enc && enc !== 'identity') {
+      compressedCount++;
+      encodings[enc] = (encodings[enc] || 0) + 1;
+    } else {
+      uncompressedCount++;
+    }
+  }
+
+  const total = compressedCount + uncompressedCount;
+  const compressionRatio = total > 0 ? Math.round((compressedCount / total) * 100) : 0;
+
+  return {
+    mainDocument: { compressed: mainDocCompressed, encoding: mainDocEncoding },
+    resources: { compressed: compressedCount, uncompressed: uncompressedCount, ratio: compressionRatio },
+    encodings, // e.g. { "br": 12, "gzip": 3 }
+  };
 }
 
 function _analyzeCaching(networkRequests) {
