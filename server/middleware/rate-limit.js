@@ -13,7 +13,7 @@ const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 const LIMITS = {
-  benchmark: 2,
+  benchmark: 5,
   compare: 5,
   test: 3,
   'ai-test': 2,
