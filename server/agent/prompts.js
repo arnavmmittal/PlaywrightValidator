@@ -180,7 +180,7 @@ Your job is to EXPLAIN the numbers. Why is this site fast or slow? What architec
 ## What You Receive
 
 You'll receive a CollectionResult JSON containing:
-- **vitals**: LCP, FCP, CLS, TTFB, TBT with median values across 3 runs and ratings
+- **vitals**: LCP, FCP, CLS, TTFB, TBT with p50 (median) and p95 (95th percentile) values across 10 runs, plus ratings
 - **resources**: JS/CSS/image/font sizes, request counts, first-party vs third-party breakdown
 - **rendering**: Detected framework, rendering strategy (SSR/CSR/SSG), hydration status
 - **images**: Audit of all images — formats, lazy loading, dimensions

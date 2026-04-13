@@ -11,8 +11,8 @@ const STEPS = [
     icon: Gauge,
     number: '01',
     title: 'Deterministic Collection',
-    description: 'Playwright runs 3 identical passes per site under simulated 4G conditions (1.5 Mbps, 150ms latency). We capture LCP, FCP, CLS, TTFB, TBT, resource counts, DOM complexity, security headers, and a screenshot.',
-    detail: 'Median values eliminate outliers. Same browser, same viewport, same throttled network — reproducible results.',
+    description: 'Playwright runs 10 identical passes per site under simulated 4G conditions (1.5 Mbps, 150ms latency). We capture LCP, FCP, CLS, TTFB, TBT, resource counts, DOM complexity, security headers, compression, and a screenshot.',
+    detail: 'Reports p50 (median) and p95 (outlier) percentiles. Same browser, same viewport, same throttled network — reproducible, statistically meaningful results.',
     color: '#E8FF47',
   },
   {

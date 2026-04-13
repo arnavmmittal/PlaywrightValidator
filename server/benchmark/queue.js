@@ -13,9 +13,9 @@
 
 const { v4: uuidv4 } = require('uuid');
 
-const DEFAULT_CONCURRENCY = 3;
+const DEFAULT_CONCURRENCY = 2; // Lower concurrency — 10 runs per benchmark is CPU-heavy
 const DEFAULT_MAX_DEPTH = 20;
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_TIMEOUT_MS = 8 * 60 * 1000; // 8 min — 10 runs + AI analysis
 
 class BenchmarkQueue {
   constructor(options = {}) {
@@ -68,7 +68,7 @@ class BenchmarkQueue {
       capacity: this.concurrency,
       maxDepth: this.maxDepth,
       estimatedWaitSec: this.pending.length > 0
-        ? Math.round(this.pending.length * 45) // ~45s per benchmark
+        ? Math.round(this.pending.length * 120) // ~2min per benchmark (10 runs + analysis)
         : 0,
     };
   }

@@ -26,8 +26,8 @@ const IMPACT_COLORS = {
   low: 'text-green-400 bg-green-500/10 border-green-500/20',
 };
 
-function formatVitalValue(key, vital) {
-  const val = vital?.value ?? vital?.median;
+function formatVitalValue(key, vital, percentile = 'p50') {
+  const val = vital?.[percentile] ?? vital?.value ?? vital?.median;
   if (val == null) return '—';
   if (key === 'cls') {
     if (val < 0.001) return 'Synthetic';
@@ -160,8 +160,10 @@ export function SiteDetailDrawer({ entry, onClose }) {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 py-6">
             {Object.entries(VITALS_META).map(([key, meta]) => {
               const vital = entry.vitals?.[key];
-              const formatted = formatVitalValue(key, vital);
-              const isSynthetic = formatted === 'Synthetic';
+              const formattedP50 = formatVitalValue(key, vital, 'p50');
+              const formattedP95 = formatVitalValue(key, vital, 'p95');
+              const isSynthetic = formattedP50 === 'Synthetic';
+              const hasP95 = vital?.p95 != null && !isSynthetic && key !== 'inp';
               return (
                 <div key={key} className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-3" title={isSynthetic ? 'CLS is near-zero in synthetic (headless) testing — real user data may differ' : undefined}>
                   <div className="flex items-center justify-between mb-1">
@@ -169,10 +171,20 @@ export function SiteDetailDrawer({ entry, onClose }) {
                     <MetricDot rating={isSynthetic ? 'synthetic' : vital?.rating} />
                   </div>
                   <div className={`font-mono text-lg font-bold mb-0.5 ${isSynthetic ? 'text-[#3A3A3A] text-sm italic' : 'text-white'}`}>
-                    {formatted}
+                    {formattedP50}
                   </div>
+                  {hasP95 && (
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[9px] text-[#3A3A3A] font-mono">p95</span>
+                      <span className={`text-[11px] font-mono ${vital?.ratingP95 === 'poor' ? 'text-red-400' : vital?.ratingP95 === 'needs-improvement' ? 'text-amber-400' : 'text-[#666666]'}`}>
+                        {formattedP95}
+                      </span>
+                    </div>
+                  )}
                   <div className="text-[10px] text-[#3A3A3A] leading-tight">
-                    {isSynthetic ? 'Near-zero in headless browsers' : meta.description}
+                    {isSynthetic ? 'Near-zero in headless browsers' : (
+                      vital?.runCount ? `${meta.description} (${vital.runCount} runs)` : meta.description
+                    )}
                   </div>
                 </div>
               );

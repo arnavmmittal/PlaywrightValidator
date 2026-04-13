@@ -34,14 +34,14 @@ Phase 1: Deterministic Collection          Phase 2: Constrained AI Analysis
 ┌──────────────────────────────┐          ┌──────────────────────────────┐
 │  Playwright + CDP Throttling │          │  Claude (Haiku) + Tools      │
 │                              │          │                              │
-│  3 runs → median values      │   ───►   │  Up to 5 turns               │
+│  10 runs → p50/p95 values    │   ───►   │  Up to 5 turns               │
 │  Simulated 4G (1.5 Mbps)    │          │  tool_choice: required       │
 │  6 Web Vitals + 7 sec hdrs  │          │  Must call report_findings   │
-│  Screenshot + DOM analysis   │          │  Can request follow-up data  │
+│  Compression + DOM analysis  │          │  Can request follow-up data  │
 └──────────────────────────────┘          └──────────────────────────────┘
 ```
 
-**Phase 1** is pure Playwright — no AI, no variance. Same browser, same viewport, same throttled network. Runs 3 times, takes the median.
+**Phase 1** is pure Playwright — no AI, no variance. Same browser, same viewport, same throttled network. Runs 10 times, reports p50 (median) and p95 (outlier) percentiles.
 
 **Phase 2** feeds the collected data to a Claude agent with 3 tools:
 - `report_findings` (required) — structured output with scores, findings, recommendations

@@ -40,7 +40,7 @@ function PhaseIndicator({ phase, currentPhase }) {
 export function BenchmarkProgress({ domain, messages = [], onCancel }) {
   const [collectorMessages, setCollectorMessages] = useState([]);
   const [currentRun, setCurrentRun] = useState(0);
-  const [totalRuns, setTotalRuns] = useState(3);
+  const [totalRuns, setTotalRuns] = useState(10);
   const [aiLines, setAiLines] = useState([]);
   const [phase, setPhase] = useState(1); // 1=collecting, 2=scoring, 3=AI
   const [cost, setCost] = useState(0);

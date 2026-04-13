@@ -3,7 +3,7 @@
  *
  * Runs a fixed sequence of Playwright operations to collect performance data.
  * No AI, no variance — same data points every time, for every site.
- * Runs 3 times and takes the median for stable, reproducible scores.
+ * Runs multiple times and computes p50 (median) and p95 (outlier) for robust scoring.
  */
 
 const { chromium } = require('playwright');
@@ -13,7 +13,7 @@ const { computeSecurityScore } = require('../utils/security-scoring');
 
 const STABILIZE_DELAY_MS = 5000;
 const NAV_TIMEOUT_MS = 30000;
-const NUM_RUNS = 3;
+const NUM_RUNS = 10;
 const SCREENSHOTS_DIR = path.join(__dirname, '../../screenshots');
 
 // Network throttling — simulates realistic user conditions (matches Lighthouse "applied throttling")
@@ -686,19 +686,37 @@ function _computeMedianVitals(runs) {
       .filter(v => v !== null && v !== undefined)
       .sort((a, b) => a - b);
 
-    const median = values.length > 0 ? values[Math.floor(values.length / 2)] : null;
+    const p50 = values.length > 0 ? _percentile(values, 50) : null;
+    const p95 = values.length > 0 ? _percentile(values, 95) : null;
 
     result[name] = {
       values,
-      median,
-      rating: median !== null ? _rateMetric(name, median) : 'unknown',
+      median: p50,  // Keep "median" field for backward compat with scoring
+      p50,
+      p95,
+      rating: p50 !== null ? _rateMetric(name, p50) : 'unknown',
+      ratingP95: p95 !== null ? _rateMetric(name, p95) : 'unknown',
+      runCount: values.length,
     };
   }
 
   // INP is null (synthetic measurement limitation)
-  result.inp = { values: [], median: null, rating: 'unknown' };
+  result.inp = { values: [], median: null, p50: null, p95: null, rating: 'unknown', ratingP95: 'unknown', runCount: 0 };
 
   return result;
+}
+
+/**
+ * Compute a percentile from a sorted array of values.
+ * Uses nearest-rank method.
+ * @param {number[]} sorted - Pre-sorted array
+ * @param {number} pct - Percentile (0-100)
+ */
+function _percentile(sorted, pct) {
+  if (sorted.length === 0) return null;
+  if (sorted.length === 1) return sorted[0];
+  const idx = Math.ceil((pct / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, Math.min(idx, sorted.length - 1))];
 }
 
 function _rateMetric(name, value) {
