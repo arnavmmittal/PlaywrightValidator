@@ -31,9 +31,29 @@ router.get('/', (req, res) => {
     ? ranked.filter(e => e.category === category)
     : ranked;
 
+  // Compute per-category stats (industry benchmarks)
+  const categoryStats = {};
+  for (const entry of entries) {
+    const cat = entry.category || 'other';
+    if (!categoryStats[cat]) categoryStats[cat] = { scores: [], lcpValues: [], ttfbValues: [], count: 0 };
+    categoryStats[cat].scores.push(entry.overallScore);
+    if (entry.vitals?.lcp?.p50 ?? entry.vitals?.lcp?.median) categoryStats[cat].lcpValues.push(entry.vitals.lcp.p50 ?? entry.vitals.lcp.median);
+    if (entry.vitals?.ttfb?.p50 ?? entry.vitals?.ttfb?.median) categoryStats[cat].ttfbValues.push(entry.vitals.ttfb.p50 ?? entry.vitals.ttfb.median);
+    categoryStats[cat].count++;
+  }
+  for (const cat of Object.keys(categoryStats)) {
+    const s = categoryStats[cat];
+    const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+    s.avgScore = avg(s.scores);
+    s.avgLcp = avg(s.lcpValues);
+    s.avgTtfb = avg(s.ttfbValues);
+    delete s.scores; delete s.lcpValues; delete s.ttfbValues;
+  }
+
   res.json({
     entries: filtered,
     total: entries.length,
+    categoryStats,
     lastUpdated: entries[0]?.benchmarkedAt || null,
   });
 });
@@ -174,6 +194,7 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
       thirdParty: collectionResult.thirdParty,
       dom: collectionResult.dom,
       caching: collectionResult.caching,
+      compression: collectionResult.compression,
       screenshot: collectionResult.screenshot,
       navTiming: collectionResult.navTiming,
       aiStats,

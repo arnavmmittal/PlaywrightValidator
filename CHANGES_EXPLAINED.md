@@ -76,13 +76,45 @@ This doc explains every change being made so you understand what's happening and
 
 ---
 
-## Tier 2: Coming Next
+## Tier 2: Changes Made
 
-### 5. Industry Classification
-Compare sites against their industry peers, not just globally. "For an e-commerce site, this LCP is below average."
+### 5. Industry Classification (Category Comparison)
 
-### 6. Time Series Visualization
-Scatter plot of individual runs over time, showing variance and trends.
+**What:** When you open a site's detail drawer, there's now a "vs [Category] avg" section that compares the site's score, LCP, and TTFB against other sites in the same category (e.g., "vs Dev Tools avg").
+
+**Why they asked:** Raw scores don't mean much without context. An LCP of 3000ms is terrible for a search engine but acceptable for a heavy e-commerce site. Comparing against peers makes scores actionable and is how real performance teams think — "are we beating our competitors?"
+
+**How it works:** The server already categorizes sites (search, news, social, dev-tools, e-commerce, etc.). When the leaderboard loads, it computes per-category averages (avg score, avg LCP, avg TTFB). The drawer then shows your site vs its category with green/red trend arrows and percentage deltas. Only shows when there are 2+ sites in the category.
+
+**Where it shows up:** In the site detail drawer, between the header and the vitals grid.
+
+---
+
+### 6. Run Distribution Scatter Plot
+
+**What:** A collapsible "Run distribution" section in the detail drawer showing a scatter plot for each metric (LCP, FCP, TTFB, TBT, CLS). Each dot is one of the 10 runs, colored by threshold (green=good, yellow=needs improvement, red=poor). Dashed reference lines show p50 and p95.
+
+**Why they asked:** P50 and p95 are summaries — they compress 10 data points into 2 numbers. The scatter plot shows the full picture: are runs clustered tightly (consistent site) or spread all over (unreliable site)? Two sites can have the same p50 but wildly different variance. This is the kind of visualization that makes people share your tool.
+
+**How it works:** The collector already stores the raw `values` array (all 10 sorted runs) per metric. We render a lightweight SVG scatter plot — no chart library, pure math. Each dot is positioned by run index (x) and value (y). P50 gets a teal dashed line, p95 gets a red dashed line.
+
+**What it costs:** Zero — it's client-side rendering of data we already collect.
+
+---
+
+### Summary of Tier 2 Code Changes
+
+| File | What changed |
+|------|-------------|
+| `server/routes/leaderboard.js` | Computes `categoryStats` (avgScore, avgLcp, avgTtfb per category) |
+| `client/src/App.jsx` | Stores + passes `categoryStats` to drawer |
+| `client/src/components/leaderboard/SiteDetailDrawer.jsx` | Category comparison UI + scatter plot integration |
+| `client/src/components/leaderboard/RunScatter.jsx` | NEW — SVG scatter plot component |
+| `CHANGES_EXPLAINED.md` | This file, updated with Tier 2 |
+
+---
+
+## Tier 3: Coming Next
 
 ### 7. Competitive Answer: "Why not WebPageTest?"
 WebPageTest = private reports for engineers. PerfRank = public leaderboard with industry comparison + structured analysis. Different products.

@@ -25,6 +25,7 @@ function App() {
   // Leaderboard state
   const [entries, setEntries] = useState([]);
   const [leaderboardError, setLeaderboardError] = useState(false);
+  const [categoryStats, setCategoryStats] = useState({});
   const [selectedEntry, setSelectedEntry] = useState(null);
 
   // Benchmark state
@@ -119,6 +120,7 @@ function App() {
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setEntries(data.entries || []);
+      setCategoryStats(data.categoryStats || {});
       setLeaderboardError(false);
     } catch {
       setLeaderboardError(true);
@@ -277,6 +279,7 @@ function App() {
       {selectedEntry && (
         <SiteDetailDrawer
           entry={selectedEntry}
+          categoryStats={categoryStats}
           onClose={() => setSelectedEntry(null)}
         />
       )}

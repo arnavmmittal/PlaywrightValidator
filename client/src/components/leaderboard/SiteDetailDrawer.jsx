@@ -4,12 +4,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import { X, ExternalLink, Clock, ChevronDown, Zap, Globe, Link2, Check, AlertTriangle, Shield, ShieldCheck, ShieldX } from 'lucide-react';
+import { X, ExternalLink, Clock, ChevronDown, Zap, Globe, Link2, Check, AlertTriangle, Shield, ShieldCheck, ShieldX, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { ScoreArc } from './ScoreArc';
 import { GradeBadge } from './GradeBadge';
 import { MetricDot } from './MetricDot';
 import { CategoryPill } from './CategoryPill';
 import { FaviconCell } from './FaviconCell';
+import { RunScatter } from './RunScatter';
 
 const VITALS_META = {
   lcp: { label: 'Largest Contentful Paint', unit: 'ms', description: 'Time until the largest element is rendered' },
@@ -46,7 +47,7 @@ function timeAgo(isoString) {
   return `${days}d ago`;
 }
 
-export function SiteDetailDrawer({ entry, onClose }) {
+export function SiteDetailDrawer({ entry, categoryStats = {}, onClose }) {
   // Close on Escape + lock body scroll
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -156,6 +157,68 @@ export function SiteDetailDrawer({ entry, onClose }) {
             </div>
           )}
 
+          {/* Category Comparison */}
+          {(() => {
+            const cat = entry.category || 'other';
+            const stats = categoryStats[cat];
+            if (!stats || stats.count < 2) return null;
+
+            const CATEGORY_LABELS = {
+              search: 'Search Engines', news: 'News Sites', social: 'Social Media',
+              video: 'Video Platforms', 'dev-tools': 'Dev Tools', ai: 'AI Platforms',
+              infra: 'Infrastructure', 'e-commerce': 'E-Commerce', reference: 'Reference',
+              community: 'Community', other: 'All Sites',
+            };
+
+            const comparisons = [
+              { label: 'Score', value: entry.overallScore, avg: stats.avgScore, unit: '/100', higherBetter: true },
+              stats.avgLcp ? { label: 'LCP', value: entry.vitals?.lcp?.p50 ?? entry.vitals?.lcp?.median, avg: stats.avgLcp, unit: 'ms', higherBetter: false } : null,
+              stats.avgTtfb ? { label: 'TTFB', value: entry.vitals?.ttfb?.p50 ?? entry.vitals?.ttfb?.median, avg: stats.avgTtfb, unit: 'ms', higherBetter: false } : null,
+            ].filter(Boolean);
+
+            return (
+              <div className="my-4 bg-[#141414] border border-[#1A1A1A] rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider">
+                    vs {CATEGORY_LABELS[cat] || cat} avg
+                  </h3>
+                  <span className="text-[10px] text-[#3A3A3A] font-mono">({stats.count} sites)</span>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {comparisons.map(({ label, value, avg, unit, higherBetter }) => {
+                    if (value == null || avg == null) return null;
+                    const delta = value - avg;
+                    const isGood = higherBetter ? delta >= 0 : delta <= 0;
+                    const isNeutral = Math.abs(delta) < (unit === 'ms' ? 50 : 3);
+                    const pct = avg !== 0 ? Math.round(Math.abs(delta) / avg * 100) : 0;
+                    return (
+                      <div key={label} className="text-center">
+                        <div className="text-[10px] text-[#3A3A3A] uppercase tracking-wider mb-1">{label}</div>
+                        <div className="text-lg font-mono font-bold text-white">
+                          {unit === 'ms' ? `${Math.round(value)}` : value}
+                          <span className="text-[10px] text-[#3A3A3A] ml-0.5">{unit}</span>
+                        </div>
+                        <div className={`flex items-center justify-center gap-1 mt-1 text-[11px] font-mono ${
+                          isNeutral ? 'text-[#3A3A3A]' : isGood ? 'text-emerald-400' : 'text-red-400'
+                        }`}>
+                          {isNeutral ? (
+                            <Minus className="w-3 h-3" />
+                          ) : isGood ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
+                          <span>{pct}% {isNeutral ? 'avg' : isGood ? 'better' : 'worse'}</span>
+                        </div>
+                        <div className="text-[9px] text-[#3A3A3A] mt-0.5">avg: {unit === 'ms' ? `${Math.round(avg)}${unit}` : `${avg}${unit}`}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Vitals Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 py-6">
             {Object.entries(VITALS_META).map(([key, meta]) => {
@@ -190,6 +253,37 @@ export function SiteDetailDrawer({ entry, onClose }) {
               );
             })}
           </div>
+
+          {/* Run Distribution — scatter plots per metric */}
+          {entry.vitals && Object.entries(VITALS_META).some(([key]) => entry.vitals[key]?.values?.length > 1) && (
+            <details className="mb-6">
+              <summary className="text-xs text-[#3A3A3A] hover:text-[#666666] cursor-pointer transition-colors flex items-center gap-1 mb-3">
+                <ChevronDown className="w-3 h-3" />
+                Run distribution ({entry.vitals?.lcp?.runCount || '?'} runs per metric)
+              </summary>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Object.entries(VITALS_META).map(([key, meta]) => {
+                  const vital = entry.vitals?.[key];
+                  if (!vital?.values?.length || vital.values.length < 2 || key === 'inp') return null;
+                  return (
+                    <div key={key} className="bg-[#141414] border border-[#1A1A1A] rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] text-[#3A3A3A] uppercase tracking-wider font-medium">{key}</span>
+                        <span className="text-[9px] text-[#3A3A3A] font-mono">{vital.values.length} runs</span>
+                      </div>
+                      <RunScatter
+                        metric={key}
+                        values={vital.values}
+                        p50={vital.p50}
+                        p95={vital.p95}
+                        unit={meta.unit}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
 
           {/* Security Headers */}
           {entry.security && (
