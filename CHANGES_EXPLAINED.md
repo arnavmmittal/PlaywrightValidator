@@ -61,6 +61,21 @@ This doc explains every change being made so you understand what's happening and
 
 ---
 
+### Summary of Code Changes
+
+| File | What changed |
+|------|-------------|
+| `client/index.html` | GA4 + Clarity script tags (placeholder IDs) |
+| `server/benchmark/collector.js` | 10 runs, p50/p95 computation, compression detection |
+| `server/benchmark/queue.js` | 8min timeout, concurrency 2 (heavier benchmarks) |
+| `server/agent/prompts.js` | Updated to mention p50/p95 and compression |
+| `client/src/components/leaderboard/SiteDetailDrawer.jsx` | p95 display, compression section |
+| `client/src/components/leaderboard/BenchmarkProgress.jsx` | Progress shows 10 runs |
+| `client/src/components/leaderboard/HowItWorks.jsx` | Updated methodology text |
+| `README.md` | Updated pipeline diagram |
+
+---
+
 ## Tier 2: Coming Next
 
 ### 5. Industry Classification
