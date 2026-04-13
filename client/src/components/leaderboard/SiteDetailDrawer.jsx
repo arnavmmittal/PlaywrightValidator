@@ -146,13 +146,25 @@ export function SiteDetailDrawer({ entry, categoryStats = {}, onClose }) {
             </div>
           </div>
 
-          {/* Error Page Banner */}
+          {/* Error / Shell Page Banner */}
           {entry.status === 'error' && (
             <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-lg p-4 my-4">
               <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
               <div>
-                <div className="text-sm font-medium text-red-400">HTTP {entry.httpStatus} — Error Page</div>
-                <div className="text-xs text-red-400/70 mt-0.5">This site returned an error. Performance scores are not meaningful for error pages.</div>
+                <div className="text-sm font-medium text-red-400">
+                  {entry.isShellPage
+                    ? 'Empty Shell Detected'
+                    : entry.isChallengePage
+                    ? 'CAPTCHA / Challenge Page'
+                    : `HTTP ${entry.httpStatus} — Error Page`}
+                </div>
+                <div className="text-xs text-red-400/70 mt-0.5">
+                  {entry.isShellPage
+                    ? 'This site served an empty page to the automated browser (bot mitigation). Scores are not meaningful.'
+                    : entry.isChallengePage
+                    ? 'This site served a challenge page. Metrics reflect the challenge, not the actual site.'
+                    : 'This site returned an error. Performance scores are not meaningful for error pages.'}
+                </div>
               </div>
             </div>
           )}

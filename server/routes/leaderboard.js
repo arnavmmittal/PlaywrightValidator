@@ -178,10 +178,13 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
       httpStatus: collectionResult.httpStatus,
       status: isErrorPage ? 'error' : 'ok',
       isChallengePage: collectionResult.isChallengePage || false,
+      isShellPage: collectionResult.isShellPage || false,
       throttleProfile: collectionResult.throttleProfile,
       security: collectionResult.security,
       aiAnalysis: isErrorPage
-        ? (collectionResult.isChallengePage
+        ? (collectionResult.isShellPage
+            ? 'Site served an empty shell to the automated browser (bot mitigation). Metrics are not meaningful.'
+            : collectionResult.isChallengePage
             ? 'Site served a CAPTCHA/challenge page. Metrics reflect the challenge, not the actual site.'
             : `Site returned HTTP ${collectionResult.httpStatus}. Performance data is not meaningful for error pages.`)
         : (findings?.summary || null),
@@ -231,6 +234,18 @@ router.post('/benchmark', rateLimitMiddleware('benchmark'), (req, res) => {
 // ── GET /api/queue/status ────────────────────────────────────────────────────
 router.get('/queue/status', (req, res) => {
   res.json(benchmarkQueue.getStatus());
+});
+
+// ── DELETE /api/leaderboard/:domain ─────────────────────────────────────────
+// Admin-only cleanup. Protected by a simple secret token.
+router.delete('/:domain', (req, res) => {
+  const token = req.headers['x-admin-token'];
+  if (!token || token !== (process.env.ADMIN_TOKEN || 'perfrank-admin')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const domain = req.params.domain;
+  const deleted = store.deleteByDomain(domain);
+  res.json({ deleted, domain });
 });
 
 module.exports = router;

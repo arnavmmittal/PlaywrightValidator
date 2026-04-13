@@ -65,6 +65,10 @@ async function collectPerformanceData(url, broadcast = () => {}) {
     // First run has the full resource/rendering/image/etc. data (doesn't change between runs)
     const firstRun = runs[0];
 
+    // Detect shell/empty pages that slip past challenge detection
+    // (e.g., SPAs that serve a blank shell to headless browsers)
+    const isShellPage = _isShellPage(firstRun, vitals);
+
     const result = {
       url,
       domain: _extractDomain(url),
@@ -72,8 +76,9 @@ async function collectPerformanceData(url, broadcast = () => {}) {
       vitals,
       throttleProfile: THROTTLE_PROFILE.name,
       httpStatus: firstRun.httpStatus,
-      isErrorPage: firstRun.httpStatus >= 400 || firstRun.isChallengePage === true,
+      isErrorPage: firstRun.httpStatus >= 400 || firstRun.isChallengePage === true || isShellPage,
       isChallengePage: firstRun.isChallengePage === true,
+      isShellPage,
       mainDocHeaders: firstRun.mainDocHeaders,
       security: firstRun.security,
       resources: firstRun.resources,
@@ -583,6 +588,28 @@ function _analyzeCaching(networkRequests) {
  * Detect CAPTCHA/challenge pages that return HTTP 200 but serve fake content.
  * More specific than _isBlockedPage — only flags definitive challenge patterns.
  */
+/**
+ * Detect "shell pages" — sites that return HTTP 200 but serve essentially
+ * empty content to headless browsers (bot mitigation without challenge pages).
+ * Signs: very few DOM nodes, no LCP/FCP, minimal depth.
+ */
+function _isShellPage(runData, vitals) {
+  const dom = runData.dom;
+  if (!dom) return false;
+
+  const noLcp = vitals.lcp?.p50 == null && vitals.lcp?.median == null;
+  const noFcp = vitals.fcp?.p50 == null && vitals.fcp?.median == null;
+  const tinyDom = dom.nodeCount < 150 && dom.maxDepth <= 5;
+
+  // Empty shell: tiny DOM + no meaningful paint events
+  if (tinyDom && noLcp && noFcp) return true;
+
+  // Very sparse page with no content paint (even if DOM is slightly larger)
+  if (dom.nodeCount < 100 && noLcp) return true;
+
+  return false;
+}
+
 async function _isChallengePage(page, httpStatus) {
   // HTTP errors are handled separately
   if (httpStatus && httpStatus >= 400) return false;
