@@ -5,21 +5,43 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PerfRank — How fast is your site, really?</title>
-    <meta name="description" content="Deterministic Playwright benchmarks + constrained AI analysis. Public performance leaderboard. No login required." />
+    <meta name="description" content="Deterministic Playwright benchmarks with structured performance analysis. Public leaderboard. No login required." />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="PerfRank — How fast is your site, really?" />
-    <meta property="og:description" content="Deterministic Playwright benchmarks + constrained Claude AI analysis. See how top sites actually perform." />
+    <meta property="og:description" content="Deterministic Playwright benchmarks with structured performance analysis. See how top sites actually perform." />
     <meta property="og:site_name" content="PerfRank" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="PerfRank — How fast is your site, really?" />
-    <meta name="twitter:description" content="Deterministic Playwright benchmarks + constrained Claude AI analysis. Public performance leaderboard." />
+    <meta name="twitter:description" content="Deterministic Playwright benchmarks with structured performance analysis. Public leaderboard." />
 
     <!-- Theme -->
     <meta name="theme-color" content="#0D0D0D" />
+
+    <!-- Google Analytics (GA4) -->
+    <!-- SETUP: Replace G-XXXXXXXXXX with your Measurement ID from analytics.google.com -->
+    <!-- Steps: analytics.google.com → Create Property → Get Measurement ID → paste below -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
+
+    <!-- Microsoft Clarity -->
+    <!-- SETUP: Replace CLARITY_ID with your Project ID from clarity.microsoft.com -->
+    <!-- Steps: clarity.microsoft.com → New Project → Get Project ID → paste below -->
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window,document,"clarity","script","CLARITY_ID");
+    </script>
   </head>
   <body>
     <div id="root"></div>
